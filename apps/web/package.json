@@ -1,0 +1,39 @@
+{
+  "name": "tonic-flow",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack --port 3000",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint --max-warnings 0",
+    "test": "jest"
+  },
+  "dependencies": {
+    "@repo/ui": "workspace:*",
+    "dexie": "^4.0.11",
+    "dexie-react-hooks": "^1.1.7",
+    "lucide-react": "^0.536.0",
+    "next": "15.4.3",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "use-debounce": "^10.0.5",
+    "zod": "^4.0.11"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/jest-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.6.4",
+    "@testing-library/react": "^16.3.0",
+    "@types/jest": "^29.5.14",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "jest": "^30.0.5",
+    "jest-environment-jsdom": "^30.0.5",
+    "ts-node": "^10.9.2",
+    "typescript": "^5"
+  }
+}

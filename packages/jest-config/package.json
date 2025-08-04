@@ -1,0 +1,15 @@
+{
+  "name": "@repo/jest-config",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
+
+  "devDependencies": {
+    "@jest/types": "^30.0.5",
+    "jest": "^30.0.5",
+    "next": "^15.4.5"
+  }
+}

@@ -1,0 +1,79 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@source "../../../../apps/**/*{ts,tsx}";
+@source "../**/*.{ts,tsx}";
+
+@theme {
+  --color-background: oklch(0.9791 0 0);
+  --color-foreground: oklch(0.3211 0 0);
+  --color-card: oklch(1 0 0);
+  --color-card-foreground: oklch(0.3211 0 0);
+
+  --color-popover: oklch(1 0 0);
+  --color-popover-foreground: oklch(0.3211 0 0);
+
+  --color-primary: oklch(0.5166 0.09306 181.0804);
+  --color-primary-foreground: oklch(1 0 0);
+  --color-primary-glow: oklch(0.5807 0.1779 190.97);
+
+  --color-secondary: oklch(0.9443 0 0);
+  --color-secondary-foreground: oklch(0.3211 0 0);
+
+  /* Muted tones */
+  --color-muted: oklch(0.9443 0 0);
+  --color-muted-foreground: oklch(0.6277 0 0);
+
+  /* Accent - Warm yellow for highlights */
+  --color-accent: oklch(0.8859 0.1539 91.23);
+  --color-accent-foreground: oklch(0.3211 0 0);
+
+  /* Destructive */
+  --color-destructive: oklch(62.8% 0.198 30.6);
+  --color-destructive-foreground: oklch(100% 0 0);
+
+  /* Borders and inputs */
+  --color-border: oklch(90.6% 0.0126 270.2);
+  --color-input: oklch(90.6% 0.0126 270.2);
+  --color-ring: oklch(50.4% 0.17 337.8);
+
+  /* Gradients - using Oklch values for the gradient stops */
+  --gradient-primary: linear-gradient(135deg, var(--primary), var(--accent));
+  --gradient-hero: linear-gradient(135deg, var(--background) 0%, oklch(35.59% 0.01 39.2) 50%, oklch(0.5166 0.09306 181.0804 / .1); 100%);
+  --gradient-card: linear-gradient(135deg, oklch(1 0 89.9), oklch(55.73% 0.028 65.5 / .15));
+  --gradient-mesh: radial-gradient(circle at 20% 80%, oklch(0.5166 0.09306 181.0804 / .15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, oklch(0.8859 0.1539 91.23 / .15) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, oklch(0.5166 0.09306 181.0804 / .1) 0%, transparent 50%);
+
+  /* Shadows for elegant depth - using Oklch custom properties with alpha adjustments */
+  --shadow-elegant: 0 25px 50px -12px oklch(0.5166 0.09306 181.0804 / .4);
+  --shadow-card: 0 8px 32px -8px oklch(0.3211 0 0 / .15);
+  --shadow-notation: 0 32px 80px -16px oklch(0.5166 0.09306 181.0804 / .5);
+  --shadow-glow: 0 0 50px oklch(0.5166 0.09306 181.0804 / .3);
+
+  /* Transitions remain the same as they are not color-related */
+  --color-transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --color-transition-spring: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Sidebar colors (from HSL) */
+  --color-sidebar-background: oklch(98.6% 0.005 270.2);
+  --color-sidebar-foreground: oklch(26.8% 0.024 270.2);
+  --color-sidebar-primary: oklch(10.1% 0.012 270.2);
+  --color-sidebar-primary-foreground: oklch(98.6% 0.005 270.2);
+  --color-sidebar-accent: oklch(95.6% 0.009 270.2);
+  --color-sidebar-accent-foreground: oklch(10.1% 0.012 270.2);
+  --color-sidebar-border: oklch(91.3% 0.012 270.2);
+  --color-sidebar-ring: oklch(59.9% 0.134 270.2);
+}
+
+:root {
+  --background: oklch(0.9791 0 0);
+  --foreground: oklch(0.3211 0 0);
+  --primary: oklch(0.5166 0.09306 181.0804);
+  --accent: oklch(0.8859 0.1539 91.23);
+  --card: oklch(1 0 0);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}

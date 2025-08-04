@@ -1,0 +1,21 @@
+{
+  "name": "tonic-flow",
+  "version": "1.0.0",
+  "author": "Daniel Azubuine",
+  "keywords": [],
+  "license": "",
+  "description": "",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@repo/eslint-config": "workspace:*",
+    "prettier": "3.6.2",
+    "turbo": "^2.5.5"
+  },
+  "packageManager": "pnpm@10.14.0",
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "name": "@repo/db",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "tsup ./index.ts",
+    "dev": "tsup ./index.ts --watch",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev --skip-generate"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.13.0",
+    "@prisma/extension-accelerate": "^2.0.2"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^24.2.0",
+    "prisma": "^6.13.0",
+    "tsup": "^8.5.0",
+    "typescript": "^5.9.2"
+  }
+}

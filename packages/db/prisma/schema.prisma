@@ -1,0 +1,65 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  fullName     String    @map("full_name")
+  password     String?
+  refreshToken String?   @map("refresh_token")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  Project      Project[]
+
+  @@map("users")
+}
+
+model Project {
+  id                     String  @id @default(cuid())
+  userId                 String  @map("user_id")
+  title                  String
+  subTitle               String? @map("sub_title")
+  composer               String?
+  arranger               String?
+  keySignature           String? @map("key_signature")
+  timeSignature          String? @map("time_signature")
+  yearOfComposition      String? @map("year_of_composition")
+  tempo                  String?
+  currentNotationContent String  @map("current_notation_content") @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user           User             @relation(fields: [userId], references: [id])
+  ProjectVersion ProjectVersion[]
+
+  @@index([userId])
+  @@map("projects")
+}
+
+model ProjectVersion {
+  id              String   @id @default(cuid())
+  projectId       String   @map("project_id")
+  notationContent String   @map("notation_content")
+  versionType     String   @map("version_type")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: NoAction)
+
+  @@index([projectId])
+  @@map("project_versions")
+}
