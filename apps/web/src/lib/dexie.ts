@@ -16,3 +16,13 @@ export class TonicFlowDatabase extends Dexie {
 }
 
 export const db = new TonicFlowDatabase();
+
+export async function addProjectToIndexDb(project: Project): Promise<void> {
+  try {
+    await db.projects.add(project)
+    console.log("Project added to IndexedDB (Dexie):", project.id)
+  } catch (error) {
+    console.error("Error adding project to IndexedDB (Dexie):", error)
+    throw error // Re-throw to allow calling component to handle
+  }
+}

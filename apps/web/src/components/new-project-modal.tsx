@@ -12,14 +12,13 @@ import { FormField } from "@repo/ui/components/form-field"
 import { Button } from "@repo/ui/components/button"
 import { LoadingSpinner } from "@repo/ui/components/loading-spinner"
 import { createProject } from "@/app/(dashboard)/actions"
-import { Project } from "@/app/(dashboard)/types"
 import { FormEvent, useState } from "react"
 import { useRouter } from "next/navigation"
+import { addProjectToIndexDb } from "@/lib/dexie"
 
 interface NewProjectModalProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess?: () => void
 }
 
 interface FormErrors {
@@ -33,7 +32,7 @@ interface FormErrors {
   tempo?: string
 }
 
-export function NewProjectModal({ isOpen, onClose, onSuccess }: NewProjectModalProps) {
+export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<FormErrors>({})
   const [generalError, setGeneralError] = useState("")
@@ -49,25 +48,13 @@ export function NewProjectModal({ isOpen, onClose, onSuccess }: NewProjectModalP
 
     try {
       const result = await createProject(formData)
-
       if (result.success && result.project) {
-        // Call onSuccess callback to refresh the projects list
-        if (onSuccess) {
-          onSuccess()
-        }
-
-        // Close the modal
+        await addProjectToIndexDb(result.project)
+        push(`/project/${result.project.id}`)
         handleClose()
-
-        // Navigate to the newly created project
-        push(`/dashboard/projects/${result.project.id}`)
       } else {
-        if (result.fieldErrors) {
-          setErrors(result.fieldErrors)
-        }
-        if (result.error) {
-          setGeneralError(result.error)
-        }
+        if (result.fieldErrors)  setErrors(result.fieldErrors)
+        if (result.error) setGeneralError(result.error)
       }
     } catch (error) {
       console.error("Create project error:", error)

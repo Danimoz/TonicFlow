@@ -1,9 +1,26 @@
 import { DashboardClient } from "./dashboard-client"
 import { getProjects } from "../actions"
 
-export default async function DashboardPage() {
-  // Get initial projects with default pagination
-  const initialData = await getProjects({ page: 1, limit: 20 })
+interface DashboardPageProps {
+  searchParams: {
+    page?: string
+    limit?: string
+    search?: string
+    sortBy?: "title" | "createdAt" | "updatedAt"
+    sortOrder?: "asc" | "desc"
+  }
+}
 
-  return <DashboardClient initialData={initialData} />
+export default async function DashboardPage({ searchParams }: DashboardPageProps) {
+  const { page, limit, search, sortBy, sortOrder } = await searchParams
+  const projectsData = await getProjects({ page: Number(page), limit: Number(limit), search, sortBy, sortOrder })
+
+  return (
+    <DashboardClient
+      projects={projectsData.projects}
+      pagination={projectsData.pagination}
+      initialSearchQuery={search}
+      initialSortBy={sortBy}
+    />
+  )
 }

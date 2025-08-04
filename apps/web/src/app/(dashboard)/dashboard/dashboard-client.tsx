@@ -3,90 +3,75 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/card"
 import { Button } from "@repo/ui/components/button"
 import { Input } from "@repo/ui/components/input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@repo/ui/components/select"
 import { Music, Plus, Search, Grid, List, ChevronLeft, ChevronRight } from "lucide-react"
 import { NewProjectModal } from "@/components/new-project-modal"
 import { ProjectCard } from "@/components/project-card"
 import { Project, ProjectsResponse } from "../types"
-import { getProjects } from "../actions"
 import { useDebounce } from "use-debounce"
 import { useCallback, useEffect, useState } from "react"
 import { getQuickActions } from "./page.constants"
+import { useRouter, useSearchParams } from "next/navigation"
 
 interface DashboardClientProps {
-  initialData: ProjectsResponse
+  projects: ProjectsResponse['projects'];
+  pagination: ProjectsResponse['pagination'];
+  initialSearchQuery?: string;
+  initialSortBy?: 'updatedAt' | 'createdAt' | 'title';
 }
 
-export function DashboardClient({ initialData }: DashboardClientProps) {
-  const [data, setData] = useState<ProjectsResponse>(initialData)
-  const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
-  const [sortBy, setSortBy] = useState<"updatedAt" | "createdAt" | "title">("updatedAt")
-  const [loading, setLoading] = useState(false)
+export function DashboardClient({
+  projects,
+  pagination,
+  initialSearchQuery,
+  initialSortBy,
+}: DashboardClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
+  const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery)
+  const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
+  const [sortBy, setSortBy] = useState<"updatedAt" | "createdAt" | "title">(initialSortBy || "updatedAt")
   // Debounced search values
-  const [debouncedSearchQuery] = useDebounce(searchQuery, 300)
+  const [debouncedSearchQuery] = useDebounce(searchQuery, 500)
   const [debouncedSortBy] = useDebounce(sortBy, 100)
 
+  // Quick Actions Map
   const actionsMap = new Map<string, () => void>([
     ["newProject", () => setIsNewProjectModalOpen(true)],
-    ["settings", () => {}], // Placeholder for settings action
+    ["settings", () => { }], // Placeholder for settings action
     ["documentation", () => window.open("https://docs.tonicflow.com", "_blank")],
   ])
-  // Search function
-  const performSearch = useCallback(async (query: string, sort: string) => {
-    setLoading(true)
-    try {
-      const result = await getProjects({
-        page: 1, // Reset to first page on search
-        limit: 20,
-        search: query,
-        sortBy: sort as 'title' | 'createdAt' | 'updatedAt',
-        sortOrder: 'desc'
+
+  const updateSearchParams = useCallback(
+    (newParams: Record<string, string | number | undefined>) => {
+      const currentParams = new URLSearchParams(searchParams.toString())
+      Object.entries(newParams).forEach(([key, value]) => {
+        if (value === undefined || value === null || value === "") {
+          currentParams.delete(key)
+        } else {
+          currentParams.set(key, String(value))
+        }
       })
-      setData(result)
-    } catch (error) {
-      console.error('Search failed:', error)
-    } finally {
-      setLoading(false)
-    }
-  }, [])
+      router.push(`/dashboard?${currentParams.toString()}`)
+    },
+    [router, searchParams],
+  )
 
   // Handle debounced search query and sort changes
   useEffect(() => {
-    performSearch(debouncedSearchQuery, debouncedSortBy)
-  }, [debouncedSearchQuery, debouncedSortBy, performSearch])
+    updateSearchParams({ search: debouncedSearchQuery, sortBy: debouncedSortBy, page: 1 })
+  }, [debouncedSearchQuery, debouncedSortBy, updateSearchParams])
 
   // Handle pagination
   const handlePageChange = async (page: number) => {
-    setLoading(true)
-    try {
-      const result = await getProjects({
-        page,
-        limit: 20,
-        search: searchQuery,
-        sortBy,
-        sortOrder: 'desc'
-      })
-      setData(result)
-    } catch (error) {
-      console.error('Page change failed:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleProjectCreated = () => {
-    // Refresh current page
-    handlePageChange(data.pagination.page)
+    updateSearchParams({ page })
   }
 
   const handleProjectDeleted = () => {
     // Refresh current page
-    handlePageChange(data.pagination.page)
   }
-
-  const { projects, pagination } = data
 
   return (
     <div className="h-screen bg-background mt-16">
@@ -99,7 +84,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
 
         {/* Quick Actions */}
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {getQuickActions(actionsMap, data.pagination.total).map((action) => (
+          {getQuickActions(actionsMap, pagination.total).map((action) => (
             <Card
               key={action.label}
               className={`hover:shadow-card transition-shadow cursor-pointer ${action.cardClass}`}
@@ -112,7 +97,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                 <h3 className="font-semibold mb-2">{action.label}</h3>
                 <p className="text-sm text-muted-foreground">{action.description}</p>
               </CardContent>
-            </Card>   
+            </Card>
           ))}
         </div>
 
@@ -125,7 +110,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                 Your Projects ({pagination.total})
               </CardTitle>
 
-              {pagination.total > 0 && (
+              {(pagination.total > 0 || searchQuery) && (
                 <div className="flex items-center gap-2">
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -134,20 +119,22 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="pl-9 w-64"
-                      disabled={loading}
                     />
                   </div>
 
-                  <select
+                  <Select
                     value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as "updatedAt" | "createdAt" | "title")}
-                    className="px-3 py-2 border rounded-md bg-background text-sm"
-                    disabled={loading}
+                    onValueChange={(value) => setSortBy(value as "updatedAt" | "createdAt" | "title")}
                   >
-                    <option value="updatedAt">Last Updated</option>
-                    <option value="createdAt">Date Created</option>
-                    <option value="title">Title</option>
-                  </select>
+                    <SelectTrigger className="px-3 py-2 border rounded-md bg-background text-sm">
+                      <SelectValue placeholder="Sort by..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="updatedAt">Last Updated</SelectItem>
+                      <SelectItem value="createdAt">Date Created</SelectItem>
+                      <SelectItem value="title">Title</SelectItem>
+                    </SelectContent>
+                  </Select>
 
                   <div className="flex border rounded-md">
                     <Button
@@ -155,7 +142,6 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                       size="sm"
                       onClick={() => setViewMode("grid")}
                       className="rounded-r-none"
-                      disabled={loading}
                     >
                       <Grid className="h-4 w-4" />
                     </Button>
@@ -164,7 +150,6 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                       size="sm"
                       onClick={() => setViewMode("list")}
                       className="rounded-l-none"
-                      disabled={loading}
                     >
                       <List className="h-4 w-4" />
                     </Button>
@@ -175,14 +160,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
           </CardHeader>
 
           <CardContent>
-            {loading && (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
-                <p className="text-muted-foreground mt-2">Loading...</p>
-              </div>
-            )}
-
-            {!loading && projects.length === 0 ? (
+            {projects.length === 0 ? (
               <div className="text-center py-12">
                 <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
                   <Music className="h-8 w-8 text-muted-foreground" />
@@ -203,7 +181,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                   </Button>
                 )}
               </div>
-            ) : !loading && (
+            ) : (
               <>
                 <div className={
                   viewMode === "grid"
@@ -226,7 +204,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                       variant="outline"
                       size="sm"
                       onClick={() => handlePageChange(pagination.page - 1)}
-                      disabled={!pagination.hasPrev || loading}
+                      disabled={!pagination.hasPrev}
                     >
                       <ChevronLeft className="h-4 w-4" />
                       Previous
@@ -240,7 +218,7 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
                       variant="outline"
                       size="sm"
                       onClick={() => handlePageChange(pagination.page + 1)}
-                      disabled={!pagination.hasNext || loading}
+                      disabled={!pagination.hasNext}
                     >
                       Next
                       <ChevronRight className="h-4 w-4" />
@@ -257,7 +235,6 @@ export function DashboardClient({ initialData }: DashboardClientProps) {
       <NewProjectModal
         isOpen={isNewProjectModalOpen}
         onClose={() => setIsNewProjectModalOpen(false)}
-        onSuccess={handleProjectCreated}
       />
     </div>
   )

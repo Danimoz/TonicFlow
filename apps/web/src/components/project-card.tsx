@@ -1,24 +1,12 @@
 "use client"
 
-import * as React from "react"
+import { useEffect, useRef, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/card"
 import { Button } from "@repo/ui/components/button"
 import { Music, MoreVertical, Edit, Trash2, Calendar, User, Clock } from "lucide-react"
 import { deleteProject } from "@/app/(dashboard)/actions"
-
-interface Project {
-  id: string
-  title: string
-  subTitle?: string
-  composer?: string
-  arranger?: string
-  keySignature?: string
-  timeSignature?: string
-  yearOfComposition?: string
-  tempo?: string
-  createdAt: string
-  updatedAt: string
-}
+import { Project } from "@/app/(dashboard)/types"
+import Link from "next/link"
 
 interface ProjectCardProps {
   project: Project
@@ -26,11 +14,11 @@ interface ProjectCardProps {
 }
 
 export function ProjectCard({ project, onDelete }: ProjectCardProps) {
-  const [showMenu, setShowMenu] = React.useState(false)
-  const [isDeleting, setIsDeleting] = React.useState(false)
-  const menuRef = React.useRef<HTMLDivElement>(null)
+  const [showMenu, setShowMenu] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const menuRef = useRef<HTMLDivElement>(null)
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowMenu(false)
@@ -76,7 +64,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
   }
 
   return (
-    <Card className="hover:shadow-card transition-all duration-200 group">
+    <Card className="hover:shadow-card transition-all duration-200 group flex flex-col h-full">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -92,7 +80,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
               )}
             </div>
           </div>
-          
+
           <div className="relative" ref={menuRef}>
             <Button
               variant="ghost"
@@ -103,7 +91,7 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
             >
               <MoreVertical className="h-4 w-4" />
             </Button>
-            
+
             {showMenu && (
               <div className="absolute right-0 top-8 w-32 bg-background border rounded-md shadow-lg z-10">
                 <button
@@ -129,23 +117,23 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
           </div>
         </div>
       </CardHeader>
-      
-      <CardContent className="pt-0">
-        <div className="space-y-2 text-sm text-muted-foreground">
+
+      <CardContent className="pt-0 flex flex-col flex-1">
+        <div className="space-y-2 text-sm text-muted-foreground flex-1">
           {project.composer && (
             <div className="flex items-center gap-2">
               <User className="h-3 w-3" />
               <span>Composer: {project.composer}</span>
             </div>
           )}
-          
+
           {project.arranger && (
             <div className="flex items-center gap-2">
               <User className="h-3 w-3" />
               <span>Arranger: {project.arranger}</span>
             </div>
           )}
-          
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
               {project.keySignature && (
@@ -159,13 +147,13 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
                 </span>
               )}
             </div>
-            
+
             <div className="flex items-center gap-1">
               <Calendar className="h-3 w-3" />
               <span className="text-xs">{formatDate(project.updatedAt)}</span>
             </div>
           </div>
-          
+
           {(project.tempo || project.yearOfComposition) && (
             <div className="flex items-center gap-4 pt-1">
               {project.tempo && (
@@ -180,17 +168,14 @@ export function ProjectCard({ project, onDelete }: ProjectCardProps) {
             </div>
           )}
         </div>
-        
+
         <div className="mt-4 pt-3 border-t">
-          <Button 
-            className="w-full" 
+          <Button
+            className="w-full"
             size="sm"
-            onClick={() => {
-              // TODO: Navigate to project editor
-              console.log("Open project:", project.id)
-            }}
+            asChild
           >
-            Open Project
+            <Link href={`/project/${project.id}`}>Open Project</Link>
           </Button>
         </div>
       </CardContent>

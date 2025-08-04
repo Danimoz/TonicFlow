@@ -1,4 +1,4 @@
-import { FileText, Music, Plus, Settings } from "lucide-react";
+import { FileText, Music, Plus, Book } from "lucide-react";
 
 export const getQuickActions = (clickAction: Map<string, () => void>, totalProjects: number) => [
   {
@@ -7,7 +7,7 @@ export const getQuickActions = (clickAction: Map<string, () => void>, totalProje
     description: "Create a new music notation project",
     cardClass: '',
     theme: "bg-primary/10",
-    clickAction: clickAction.get("newProject") || (() => {}),
+    clickAction: clickAction.get("newProject") || (() => { }),
   },
   {
     icon: <FileText className="h-6 w-6 text-accent" />,
@@ -15,7 +15,7 @@ export const getQuickActions = (clickAction: Map<string, () => void>, totalProje
     description: "Start with a template (Coming Soon)",
     cardClass: 'opacity-50',
     theme: "bg-accent/10",
-    clickAction: (() => {}),
+    clickAction: (() => { }),
   },
   {
     icon: <Music className="h-6 w-6 text-green-500" />,
@@ -23,14 +23,14 @@ export const getQuickActions = (clickAction: Map<string, () => void>, totalProje
     description: `${totalProjects} project${totalProjects !== 1 ? 's' : ''}`,
     cardClass: '',
     theme: "bg-green-500/10",
-    clickAction: (() => {}),
+    clickAction: (() => { }),
   },
   {
-    icon: <Settings className="h-6 w-6 text-orange-500" />,
-    label: "Settings",
-    description: "Manage your account settings (Coming Soon)",
-    cardClass: 'opacity-50',
+    icon: <Book className="h-6 w-6 text-orange-500" />,
+    label: "Read Documentation",
+    description: "Learn how to use Tonic Flow",
+    cardClass: '',
     theme: "bg-orange-500/10",
-    clickAction: () => {},
+    clickAction: clickAction.get("documentation") || (() => { }),
   },
 ];
