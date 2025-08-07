@@ -32,10 +32,6 @@ export class CreateProjectDto {
   @IsString()
   @IsOptional()
   tempo?: string;
-
-  @IsString()
-  @IsOptional()
-  currentNotationContent?: string;
 }
 
 export class UpdateProjectDto {

@@ -5,8 +5,13 @@ import Navbar from './navbar';
 
 export default function ConditionalNavbar() {
   const pathname = usePathname();
+  const routesWithoutNavbar = [
+    '/login',
+    '/register',
+    '/callback',
+  ];
 
-  if (['/login', '/register', '/callback'].includes(pathname)) {
+  if (routesWithoutNavbar.includes(pathname) || pathname.startsWith('/project/')) {
     return null;
   }
 

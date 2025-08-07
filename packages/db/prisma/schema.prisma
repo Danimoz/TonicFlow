@@ -28,17 +28,16 @@ model User {
 }
 
 model Project {
-  id                     String  @id @default(cuid())
-  userId                 String  @map("user_id")
-  title                  String
-  subTitle               String? @map("sub_title")
-  composer               String?
-  arranger               String?
-  keySignature           String? @map("key_signature")
-  timeSignature          String? @map("time_signature")
-  yearOfComposition      String? @map("year_of_composition")
-  tempo                  String?
-  currentNotationContent String  @map("current_notation_content") @db.Text
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  title             String
+  subTitle          String? @map("sub_title")
+  composer          String?
+  arranger          String?
+  keySignature      String? @map("key_signature")
+  timeSignature     String? @map("time_signature")
+  yearOfComposition String? @map("year_of_composition")
+  tempo             String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -55,10 +54,11 @@ model ProjectVersion {
   projectId       String   @map("project_id")
   notationContent String   @map("notation_content")
   versionType     String   @map("version_type")
+  isCurrent       Boolean  @default(false) @map("is_current")
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: NoAction)
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@index([projectId])
   @@map("project_versions")

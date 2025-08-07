@@ -14,7 +14,7 @@ import { LoadingSpinner } from "@repo/ui/components/loading-spinner"
 import { createProject } from "@/app/(dashboard)/actions"
 import { FormEvent, useState } from "react"
 import { useRouter } from "next/navigation"
-import { addProjectToIndexDb } from "@/lib/dexie"
+import { addProjectToIndexedDb } from "@/lib/dexie"
 
 interface NewProjectModalProps {
   isOpen: boolean
@@ -49,7 +49,8 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
     try {
       const result = await createProject(formData)
       if (result.success && result.project) {
-        await addProjectToIndexDb(result.project)
+        sessionStorage.setItem("newProject", JSON.stringify(result.project))
+        await addProjectToIndexedDb(result.project);
         push(`/project/${result.project.id}`)
         handleClose()
       } else {

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateProjectDto, UpdateProjectDto } from './projects.dto';
 
@@ -7,12 +7,21 @@ export class ProjectsService {
   constructor(private prisma: PrismaService) { }
 
   async create(userId: string, createProjectDto: CreateProjectDto) {
-    return this.prisma.project.create({
-      data: {
-        ...createProjectDto,
-        userId,
-        currentNotationContent: createProjectDto.currentNotationContent || '',
-      },
+    // Validate required fields
+    if (!userId) {
+      throw new BadRequestException('userId is required');
+    }
+
+    return await this.prisma.$transaction(async (tx) => {
+      const project = await tx.project.create({
+        data: { ...createProjectDto, userId },
+      });
+
+      const initialVersion = await tx.projectVersion.create({
+        data: { projectId: project.id, notationContent: '', versionType: 'initial', isCurrent: true },
+      });
+
+      return { ...project, currentVersion: initialVersion };
     });
   }
 
@@ -76,7 +85,7 @@ export class ProjectsService {
       include: {
         ProjectVersion: {
           orderBy: { createdAt: 'desc' },
-          take: 10, // Get last 10 versions
+          where: { isCurrent: true },
         },
       },
     });
@@ -89,7 +98,8 @@ export class ProjectsService {
       throw new ForbiddenException('Access denied');
     }
 
-    return project;
+    const { ProjectVersion, ...projectData } = project;
+    return { ...projectData, currentVersion: ProjectVersion[0] };
   }
 
   async update(id: string, userId: string, updateProjectDto: UpdateProjectDto) {
@@ -129,16 +139,24 @@ export class ProjectsService {
     });
   }
 
-  async createVersion(projectId: string, userId: string, notationContent: string, versionType: string = 'manual') {
-    // First verify the user owns the project
-    const project = await this.findOne(projectId, userId);
+  async createVersion(
+    projectId: string,
+    userId: string,
+    notationContent: string,
+    versionType: string = 'manual'
+  ) {
+    // Verify the user owns the project first
+    await this.findOne(projectId, userId);
 
-    return this.prisma.projectVersion.create({
-      data: {
-        projectId,
-        notationContent,
-        versionType,
-      },
+    return await this.prisma.$transaction(async (tx) => {
+      await tx.projectVersion.updateMany({
+        where: { projectId, isCurrent: true },
+        data: { isCurrent: false },
+      });
+
+      return tx.projectVersion.create({
+        data: { projectId, notationContent, versionType, isCurrent: true },
+      });
     });
   }
 

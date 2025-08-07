@@ -1,6 +1,6 @@
 "use server"
 
-import { getAuthTokens, requireAuth } from "@/lib/auth"
+import { requireAuth } from "@/lib/auth"
 import { fetcher } from "@/lib/fetcher"
 import { redirect } from "next/navigation"
 import { Project, ProjectsResponse } from "./types"
@@ -31,17 +31,8 @@ export async function createProject(formData: FormData): Promise<CreateProjectRe
 
   // Server-side validation
   const fieldErrors: Record<string, string> = {}
-
-  if (!title?.trim()) {
-    fieldErrors.title = "Title is required"
-  }
-
-  if (Object.keys(fieldErrors).length > 0) {
-    return {
-      success: false,
-      fieldErrors
-    }
-  }
+  if (!title?.trim()) fieldErrors.title = "Title is required"
+  if (Object.keys(fieldErrors).length > 0) return { success: false, fieldErrors }
 
   try {
     const project = await fetcher(`${process.env.BACKEND_BASE_URL}/projects`, {
@@ -55,38 +46,18 @@ export async function createProject(formData: FormData): Promise<CreateProjectRe
         timeSignature: timeSignature?.trim() || undefined,
         yearOfComposition: yearOfComposition?.trim() || undefined,
         tempo: tempo?.trim() || undefined,
-        currentNotationContent: "" // Start with empty notation
       })
     })
-
-    return {
-      success: true,
-      project
-    }
+    return { success: true, project }
   } catch (error) {
     if (error instanceof Error) {
-      if (error.message === "Unauthorized") {
-        redirect("/login")
-      }
-
+      if (error.message === "Unauthorized") redirect("/login")
       // Check if error has fieldErrors (from fetcher)
-      if ((error as any).fieldErrors) {
-        return {
-          success: false,
-          fieldErrors: (error as any).fieldErrors
-        }
-      }
-
-      return {
-        success: false,
-        error: error.message
-      }
+      if ((error as any).fieldErrors) return { success: false, fieldErrors: (error as any).fieldErrors }
+      return { success: false, error: error.message }
     }
 
-    return {
-      success: false,
-      error: "An unexpected error occurred"
-    }
+    return { success: false, error: "An unexpected error occurred" }
   }
 }
 
@@ -133,10 +104,20 @@ export async function getProjects(options?: {
   }
 }
 
-// Legacy function for backward compatibility - gets all projects without pagination
-export async function getAllProjects(): Promise<Project[]> {
-  const response = await getProjects({ limit: 1000 }) // Get a large number
-  return response.projects
+export async function getProjectById(projectId: string): Promise<Project | null> {
+  await requireAuth()
+  try {
+    const project = await fetcher(`${process.env.BACKEND_BASE_URL}/projects/${projectId}`, {
+      cache: "no-store"
+    })
+
+    return project as Project
+  } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      redirect("/login")
+    }
+    return null
+  }
 }
 
 export async function deleteProject(projectId: string): Promise<{ success: boolean; error?: string }> {
@@ -150,19 +131,10 @@ export async function deleteProject(projectId: string): Promise<{ success: boole
     return { success: true }
   } catch (error) {
     if (error instanceof Error) {
-      if (error.message === "Unauthorized") {
-        redirect("/login")
-      }
-
-      return {
-        success: false,
-        error: error.message
-      }
+      if (error.message === "Unauthorized") redirect("/login")
+      return { success: false, error: error.message }
     }
 
-    return {
-      success: false,
-      error: "An unexpected error occurred"
-    }
+    return { success: false, error: "An unexpected error occurred" }
   }
 }

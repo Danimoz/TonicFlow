@@ -1,3 +1,5 @@
+import { EditorPreferences } from "@/contexts/types"
+
 export interface Project {
   id: string
   title: string
@@ -11,6 +13,9 @@ export interface Project {
   tempo?: string
   createdAt: string
   updatedAt: string
+  
+  currentVersion?: ProjectVersion
+  preferences?: EditorPreferences
 }
 
 export interface ProjectsResponse {
@@ -26,10 +31,17 @@ export interface ProjectsResponse {
 }
 
 export interface ProjectVersion {
-  id: string; // cuid from server
+  id: string;
   projectId: string;
   notationContent: string;
-  versionType: string; // e.g., 'auto'
+  versionType: string;
+  isCurrent: boolean;
   createdAt: Date;
   updatedAt: Date;
+}
+
+export interface EditorState {
+  projectId: string;
+  preferences: EditorPreferences;
+  solfaText?: string;
 }
