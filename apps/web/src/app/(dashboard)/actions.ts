@@ -1,7 +1,7 @@
 "use server"
 
 import { requireAuth } from "@/lib/auth"
-import { fetcher } from "@/lib/fetcher"
+import { fetcher, handleServerError } from "@/lib/fetcher"
 import { redirect } from "next/navigation"
 import { Project, ProjectsResponse } from "./types"
 
@@ -58,6 +58,22 @@ export async function createProject(formData: FormData): Promise<CreateProjectRe
     }
 
     return { success: false, error: "An unexpected error occurred" }
+  }
+}
+
+export async function createProjectVersion(projectId: string, notationContent: string, versionType: string = 'manual'){
+  await requireAuth()
+
+  try {
+    const version = await fetcher(`${process.env.BACKEND_BASE_URL}/projects/${projectId}/versions`, {
+      method: "POST",
+      body: JSON.stringify({ notationContent, versionType })
+    })
+    if (!version) throw new Error("Failed to create project version");
+
+    return { version, success: true }
+  } catch (error) {
+    return handleServerError(error);
   }
 }
 
@@ -130,11 +146,6 @@ export async function deleteProject(projectId: string): Promise<{ success: boole
 
     return { success: true }
   } catch (error) {
-    if (error instanceof Error) {
-      if (error.message === "Unauthorized") redirect("/login")
-      return { success: false, error: error.message }
-    }
-
-    return { success: false, error: "An unexpected error occurred" }
+    return handleServerError(error);
   }
 }

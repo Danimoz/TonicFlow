@@ -1,9 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useReducer, useState } from "react";
 import { EditorAction, EditorContextValue, EditorPreferences, EditorState } from "./types";
-import { getProjectFromIndexedDB, addProjectToIndexedDb, savePreferencesToIndexedDB } from "@/lib/dexie";
+import { getProjectFromIndexedDB, addProjectToIndexedDb, savePreferencesToIndexedDB, saveSolfaTextToIndexedDB, createProjectVersion } from "@/lib/dexie";
 import { getProjectById } from "@/app/(dashboard)/actions";
-import { getPreferencesFromProject } from "@/lib/editorUtils";
+import { generateSolfaDiff, getPreferencesFromProject } from "@/lib/editorUtils";
 import { Project } from "@/app/(dashboard)/types";
+import { useDebounce } from "use-debounce";
 
 const EditorContext = createContext<EditorContextValue | undefined>(undefined);
 
@@ -50,26 +51,51 @@ function editorReducer(state: EditorState | null, action: EditorAction): EditorS
   }
 }
 
+const DEBOUNCE_DELAYS = {
+  SOLFA_TEXT: 2130,
+  BACKEND_SYNC: 90000
+} as const;
+
+const VERSION_THRESHOLDS = {
+  CHANGE_PERCENTAGE: 20,
+  MIN_SESSION_DURATION: 180, // 3 minutes
+  AUTO_VERSION_INTERVAL: 300 // 5 minutes
+} as const
+
 export function EditorProvider({ projectId, children }: EditorProviderProps) {
   const [state, dispatch] = useReducer(editorReducer, null);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [debouncedSolfaText] = useDebounce(state?.solfaText, DEBOUNCE_DELAYS.SOLFA_TEXT);
+  const [debouncedBackendSync] = useDebounce(state?.solfaText, DEBOUNCE_DELAYS.BACKEND_SYNC);
 
-  const createInitialEditorState = (project: Project): EditorState => ({
+  // Track versioning state
+  const [lastVersionContent, setLastVersionContent] = useState<string>('');
+  const [sessionStartTime, setSessionStartTime] = useState<Date>(new Date());
+
+  const createInitialEditorState = useCallback((project: Project): EditorState => ({
     projectId: project.id,
     preferences: getPreferencesFromProject(project),
     solfaText: project.currentVersion?.notationContent || undefined,
     isPlaying: false,
-  });
+  }), []);
+
+  const handleError = useCallback((error: unknown, context: string) => {
+    console.error(`Error occurred in ${context}:`, error);
+    setError(`Failed to ${context}. Please try again.`);
+  }, []);
 
   useEffect(() => {
     const initialize = async () => {
       setIsLoading(true);
+      setSessionStartTime(new Date());
       // check if projectId is new
       const newProjectJSON = sessionStorage.getItem("newProject");
       if (newProjectJSON) {
         const newProject = JSON.parse(newProjectJSON);
         if (newProject && newProject.id === projectId) {
           dispatch({ type: 'SET_EDITOR_STATE', payload: createInitialEditorState(newProject) });
+          setLastVersionContent(newProject.currentVersion?.notationContent || '');
           sessionStorage.removeItem("newProject");
           setIsLoading(false);
           return;
@@ -90,6 +116,7 @@ export function EditorProvider({ projectId, children }: EditorProviderProps) {
       if (!indexedProject) {
         await addProjectToIndexedDb(project);
         dispatch({ type: 'SET_EDITOR_STATE', payload: createInitialEditorState(project) });
+        setLastVersionContent(project.currentVersion?.notationContent || '');
       } else {
         dispatch({
           type: 'SET_EDITOR_STATE', payload: {
@@ -99,6 +126,7 @@ export function EditorProvider({ projectId, children }: EditorProviderProps) {
             isPlaying: false,
           }
         });
+        setLastVersionContent(indexedProject.currentVersion?.notationContent || '');
       }
     } catch (error) {
       console.error("Error loading project:", error);
@@ -112,6 +140,74 @@ export function EditorProvider({ projectId, children }: EditorProviderProps) {
       savePreferencesToIndexedDB(state.projectId, state.preferences);
     }
   }, [state?.projectId, state?.preferences]);
+
+  // Auto-save solfa text to IndexedDB when it changes (debounced)
+  useEffect(() => {
+    if (state?.projectId && debouncedSolfaText !== undefined) {
+      saveSolfaTextToIndexedDB(state.projectId, debouncedSolfaText);
+    }
+  }, [state?.projectId, debouncedSolfaText]);
+
+  // Sync with backend when solfa text changes (debounced)
+  useEffect(() => {
+    if (state?.projectId && debouncedBackendSync!== undefined) {
+      const syncToBackend = async() => {
+        try {
+          await fetch(`/api/sync/project/${state.projectId}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ notationContent: debouncedBackendSync })
+          });
+        } catch (error) {
+          console.error("Error syncing to backend:", error);
+        }
+      }
+      syncToBackend();
+    }
+  }, [state?.projectId, debouncedBackendSync]);  
+
+  const hasSignificantChanges = useCallback(() => {
+    if (!lastVersionContent || !state?.solfaText) return false;
+    const changePercentage = generateSolfaDiff(lastVersionContent, state.solfaText);
+    return changePercentage > 20;
+  }, [lastVersionContent, state?.solfaText]);
+
+  // Auto-create version when the user leaves the page
+  useEffect(() => {
+    const handleBeforeUnload = async () => {
+      if (!state?.projectId || !state.solfaText) return;
+      
+      const sessionDuration = (new Date().getTime() - sessionStartTime.getTime()) / 1000;
+      const hasChanges = hasSignificantChanges();
+      if (hasChanges && sessionDuration > 180) {
+        await createProjectVersion(state.projectId, state.solfaText, 'auto');
+        setLastVersionContent(state.solfaText);
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [state?.projectId, debouncedSolfaText]);
+
+  // Auto-create version when ther'e are significant changes or session duration is greater than 30 minutes
+  useEffect(() => {
+    if (!debouncedSolfaText || !state?.projectId) return
+    const sessionDuration = (new Date().getTime() - sessionStartTime.getTime()) / 1000;
+
+    const checkForVersionCreation = async () => {
+      if (hasSignificantChanges() || sessionDuration > 1800){
+        if (state.solfaText) {
+          await createProjectVersion(state.projectId, state.solfaText, 'auto')
+          setLastVersionContent(state.solfaText);
+        }
+      }
+    }
+
+    checkForVersionCreation()
+  }, [hasSignificantChanges])
+
 
   const setSidebarCollapsed = useCallback((collapsed: boolean) => {
     dispatch({ type: 'SET_SIDEBAR_COLLAPSED', payload: collapsed });

@@ -77,3 +77,7 @@ body {
   background: var(--background);
   color: var(--foreground);
 }
+
+grammarly-extension {
+  display: none;
+} 

@@ -8,9 +8,8 @@ export class ProjectsService {
 
   async create(userId: string, createProjectDto: CreateProjectDto) {
     // Validate required fields
-    if (!userId) {
-      throw new BadRequestException('userId is required');
-    }
+    if (!userId) throw new BadRequestException('userId is required');
+
 
     return await this.prisma.$transaction(async (tx) => {
       const project = await tx.project.create({
@@ -90,30 +89,40 @@ export class ProjectsService {
       },
     });
 
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    }
-
-    if (project.userId !== userId) {
-      throw new ForbiddenException('Access denied');
-    }
+    if (!project) throw new NotFoundException('Project not found');
+    if (project.userId !== userId) throw new ForbiddenException('Access denied');
 
     const { ProjectVersion, ...projectData } = project;
-    return { ...projectData, currentVersion: ProjectVersion[0] };
+    return { ...projectData, currentVersion: ProjectVersion[0] || null };
   }
 
+  async saveSolfaToCurrentVersion(projectId: string, notationContent: string, userId: string) {
+    await this.findOne(projectId, userId);
+    return await this.prisma.$transaction(async (tx) => {
+      const currentVersion = await tx.projectVersion.findFirst({
+        where: { projectId, isCurrent: true },
+      });
+
+      if (!currentVersion) throw new NotFoundException('Current version not found');
+
+      await tx.projectVersion.update({
+        where: { id: currentVersion.id },
+        data: { notationContent },
+      });
+
+      return await tx.project.update({
+        where: { id: projectId },
+        data: { updatedAt: new Date() }
+      })
+    })
+  }
   async update(id: string, userId: string, updateProjectDto: UpdateProjectDto) {
     const project = await this.prisma.project.findUnique({
       where: { id },
     });
 
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    }
-
-    if (project.userId !== userId) {
-      throw new ForbiddenException('Access denied');
-    }
+    if (!project) throw new NotFoundException('Project not found');
+    if (project.userId !== userId) throw new ForbiddenException('Access denied');
 
     return this.prisma.project.update({
       where: { id },
@@ -126,18 +135,14 @@ export class ProjectsService {
       where: { id },
     });
 
-    if (!project) {
-      throw new NotFoundException('Project not found');
-    }
-
-    if (project.userId !== userId) {
-      throw new ForbiddenException('Access denied');
-    }
+    if (!project) throw new NotFoundException('Project not found');
+    if (project.userId !== userId) throw new ForbiddenException('Access denied');
 
     return this.prisma.project.delete({
       where: { id },
     });
   }
+
 
   async createVersion(
     projectId: string,
@@ -145,18 +150,39 @@ export class ProjectsService {
     notationContent: string,
     versionType: string = 'manual'
   ) {
-    // Verify the user owns the project first
     await this.findOne(projectId, userId);
-
+    await this.cleanUpVersionHistory(projectId);
     return await this.prisma.$transaction(async (tx) => {
       await tx.projectVersion.updateMany({
         where: { projectId, isCurrent: true },
         data: { isCurrent: false },
       });
 
-      return tx.projectVersion.create({
+      const newVersion = await tx.projectVersion.create({
         data: { projectId, notationContent, versionType, isCurrent: true },
       });
+      await tx.project.update({
+        where: { id: projectId },
+        data: { updatedAt: new Date() },
+      });
+
+      return newVersion;
+    });
+  }
+
+  async cleanUpVersionHistory(projectId: string, versionsToKeep: number = 5) {
+    // Get all versions for the project, ordered by creation date
+    const versions = await this.prisma.projectVersion.findMany({
+      where: { projectId },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true, isCurrent: true }, // Select only necessary fields
+    });
+
+    if (versions.length <= versionsToKeep) return;
+
+    const oldestVersion = versions[versions.length - 1];
+    await this.prisma.projectVersion.delete({
+      where: { id: oldestVersion?.id },
     });
   }
 

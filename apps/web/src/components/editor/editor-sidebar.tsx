@@ -1,7 +1,7 @@
 'use client';
 
 import { useEditor } from "@/contexts/editor-context";
-import { useSidebarActions } from "@/hooks/use-sidebar-actions";
+import { SidebarAction, useSidebarActions } from "@/hooks/use-sidebar-actions";
 import { Button } from "@repo/ui/components/button";
 import { cn } from "@repo/ui/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";

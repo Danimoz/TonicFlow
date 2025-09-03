@@ -13,6 +13,7 @@
     "@repo/ui": "workspace:*",
     "dexie": "^4.0.11",
     "dexie-react-hooks": "^1.1.7",
+    "diff": "^8.0.2",
     "lucide-react": "^0.536.0",
     "next": "15.4.3",
     "react": "19.1.0",

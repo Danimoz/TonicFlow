@@ -48,6 +48,16 @@ export class ProjectsController {
     return this.projectsService.findOne(id, req.user.id);
   }
 
+  @Post(':id/update-current-version')
+  updateCurrentVersion(
+    @Param('id') id: string,
+    @Request() req,
+    @Body() body: { notationContent: string },
+  ){
+    return this.projectsService.saveSolfaToCurrentVersion(id, body.notationContent, req.user.id);
+  }
+
+
   @Patch(':id')
   update(
     @Param('id') id: string,

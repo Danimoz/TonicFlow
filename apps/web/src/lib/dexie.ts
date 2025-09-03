@@ -11,10 +11,10 @@ export class TonicFlowDatabase extends Dexie {
 
   constructor() {
     super('TonicFlowDB')
-    this.version(2).stores({
+    this.version(3).stores({
       projects: 'id, title, subTitle, composer, arranger, keySignature, timeSignature, yearOfComposition, tempo, userId, createdAt, updatedAt',
       projectVersions: 'id, projectId, notationContent, versionType, createdAt, updatedAt',
-      editorConfig: 'projectId, sidebarCollapsed, bpm, keySignature, timeSignature, viewMode, pageLayout'
+      editorConfig: 'projectId, sidebarCollapsed, bpm, viewMode, pageLayout'
     });
   }
 }
@@ -42,9 +42,7 @@ export async function addProjectToIndexedDb(project: Project): Promise<void> {
 export async function getProjectFromIndexedDB(projectId: string): Promise<Project | null> {
   try {
     const project = await db.projects.get(projectId);
-    if (!project) {
-      return null;
-    }
+    if (!project)  return null;
 
     const currentVersion = await db.projectVersions.where('projectId').equals(projectId).and(version => version.isCurrent === true).first();
     if (!currentVersion) {
@@ -58,6 +56,7 @@ export async function getProjectFromIndexedDB(projectId: string): Promise<Projec
       return null;
     }
 
+    console.log("Retrieved preferences from IndexedDB:", preferences);
     return { ...project, currentVersion, preferences };
   } catch (error) {
     console.error("Error getting project from IndexedDB:", error);
@@ -79,7 +78,8 @@ export async function saveProjectToIndexedDB(project: Project): Promise<void> {
 export async function savePreferencesToIndexedDB(projectId: string, preferences: EditorPreferences): Promise<void> {
   try {
     await db.editorConfig.put({ projectId, ...preferences });
-    console.log("Preferences saved to IndexedDB (Dexie) for project:", projectId);
+    // Verify the save by reading it back
+    const saved = await db.editorConfig.get(projectId);
   } catch (error) {
     console.error("Error saving preferences to IndexedDB (Dexie):", error);
     throw error; // Re-throw to allow calling component to handle
@@ -109,22 +109,64 @@ export async function saveSolfaTextToIndexedDB(projectId: string, solfaText: str
   }
 }
 
+export async function createProjectVersion(projectId: string, notationContent: string, versionType: string = 'manual'): Promise<ProjectVersion> {
+  try {
+    const project = await db.projects.get(projectId);
+    if (!project) throw new Error("Project not found in IndexedDB");
+    await cleanUpVersionHistory(projectId);
+
+    await db.projectVersions.where('projectId').equals(projectId).modify({ isCurrent: false });
+
+    const newVersion: ProjectVersion = {
+      id: crypto.randomUUID(),
+      projectId,
+      notationContent,
+      versionType,
+      isCurrent: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+
+    await db.projectVersions.add(newVersion);
+    await syncVersionToBackend(newVersion);
+    return newVersion;
+  } catch (error) {
+    console.error("Error creating project version in IndexedDB (Dexie):", error);
+    throw error; // Re-throw to allow calling component to handle
+  }
+}
+
+async function cleanUpVersionHistory(projectId: string): Promise<void> {
+  try {
+    const versions = await db.projectVersions.where('projectId').equals(projectId).toArray();
+    if (versions.length < 5) return; // No cleanup needed
+    // get the oldest version
+    const sortedVersions = versions.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    const oldestVersion = sortedVersions[0];
+    await db.projectVersions.delete(oldestVersion!.id);
+  } catch (error) {
+    console.error("Error cleaning up version history:", error);
+    throw error; // Re-throw to allow calling component to handle
+  }
+}
+
 // Sync functions for backend integration
 export async function syncVersionToBackend(version: ProjectVersion): Promise<void> {
   try {
-    const response = await fetch(`/api/projects/${version.projectId}/versions`, {
+    const response = await fetch(`/api/sync/project-versions/${version.projectId}`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(version),
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        notationContent: version.notationContent,
+        versionType: version.versionType,
+      }),
     });
 
     if (!response.ok) {
       throw new Error(`Failed to sync version: ${response.statusText}`);
     }
 
-    console.log(`Synced version ${version.id} to backend`);
+    console.log(`Synced version ${version.id} of project ${version.projectId} to backend`);
   } catch (error) {
     console.error('Error syncing version to backend:', error);
     throw error;

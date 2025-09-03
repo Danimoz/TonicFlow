@@ -1,5 +1,6 @@
 import { getAuthTokens } from "./auth";
 import { refreshTokens } from "@/app/(auth)/actions";
+import { redirect } from "next/navigation";
 
 export const fetcher = async (url: string, options: RequestInit = {}) => {
   try {
@@ -69,3 +70,13 @@ export const fetcher = async (url: string, options: RequestInit = {}) => {
     throw new Error("Network error. Please check your connection and try again.");
   }
 };
+
+
+export function handleServerError(error: unknown) {
+  if (error instanceof Error) {
+    if (error.message === "Unauthorized") redirect("/login");
+    return { success: false, error: error.message };
+  }
+
+  return { success: false, error: "An unexpected error occurred" };
+}

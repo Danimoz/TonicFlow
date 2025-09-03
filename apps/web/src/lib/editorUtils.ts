@@ -1,5 +1,6 @@
 import { Project } from "@/app/(dashboard)/types";
 import { DEFAULT_EDITOR_PREFERENCES, EditorPreferences, KeySignature, TimeSignature } from "@/contexts/types";
+import { diffArrays } from "diff";
 
 export function getPreferencesFromProject(project: Project): EditorPreferences {
   return {
@@ -75,4 +76,27 @@ function parseBPM(bpm?: string | number): number {
     return tempoMarkings[normalizedTempo] || DEFAULT_EDITOR_PREFERENCES.bpm || 120;
   }
   return DEFAULT_EDITOR_PREFERENCES.bpm || 120;
+}
+
+export function tokenizeSolfa(notation: string): string[] {
+  const tokenRegex =
+    /~?[a-zA-Zₗ²′″]+(?:\([^)]*\))?(?:\{[^}]*\})?(?:~)?|\|\||\||:|\.|-|\^[ ]?|@[\w#b]+|#\d+\/\d+|R\d+|\*[^\*]+\*|\&\d+|DS|DC|\$|\[[^\]]+\]|\+/g;
+  return notation.match(tokenRegex) || [];
+}
+
+export function generateSolfaDiff(oldNotation: string, newNotation: string) {
+  const oldTokens = tokenizeSolfa(oldNotation);
+  const newTokens = tokenizeSolfa(newNotation);
+
+  const changes = diffArrays(oldTokens, newTokens);
+  let changedItems = 0;
+  for (const part of changes) {
+    if (part.added || part.removed) {
+      changedItems += part.count;
+    }
+  }
+
+  const totalTokens = Math.max(oldTokens.length, newTokens.length);
+  const changePercentage = totalTokens > 0 ? (changedItems / totalTokens) * 100 : 0;
+  return changePercentage;
 }

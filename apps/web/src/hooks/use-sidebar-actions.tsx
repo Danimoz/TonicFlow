@@ -4,7 +4,7 @@ import { useEditor } from "@/contexts/editor-context";
 import { Edit, Eye, Monitor, Pause, Play, Smartphone, Square } from "lucide-react";
 import { useEffect } from "react";
 
-interface SidebarAction {
+export interface SidebarAction {
   id: string;
   label: string;
   icon: React.ComponentType<{ className?: string }>;
