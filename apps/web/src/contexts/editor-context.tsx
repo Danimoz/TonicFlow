@@ -88,6 +88,7 @@ export function EditorProvider({ projectId, children }: EditorProviderProps) {
   useEffect(() => {
     const initialize = async () => {
       setIsLoading(true);
+      setError(null)
       setSessionStartTime(new Date());
       // check if projectId is new
       const newProjectJSON = sessionStorage.getItem("newProject");
@@ -108,7 +109,7 @@ export function EditorProvider({ projectId, children }: EditorProviderProps) {
     initialize();
   }, [projectId])
 
-  const loadProject = async (projectId: string) => {
+  const loadProject = useCallback(async (projectId: string) => {
     try {
       const project = await getProjectById(projectId);
       if (!project) throw new Error("Project not found");
@@ -129,10 +130,9 @@ export function EditorProvider({ projectId, children }: EditorProviderProps) {
         setLastVersionContent(indexedProject.currentVersion?.notationContent || '');
       }
     } catch (error) {
-      console.error("Error loading project:", error);
-      return;
+      handleError(error, "load project");
     }
-  };
+  }, [createInitialEditorState, handleError]);
 
   useEffect(() => {
     if (state?.projectId && state.preferences) {
@@ -182,7 +182,7 @@ export function EditorProvider({ projectId, children }: EditorProviderProps) {
       const sessionDuration = (new Date().getTime() - sessionStartTime.getTime()) / 1000;
       const hasChanges = hasSignificantChanges();
       if (hasChanges && sessionDuration > 180) {
-        await createProjectVersion(state.projectId, state.solfaText, 'auto');
+        await createProjectVersion(state.projectId, state.solfaText, 'auto', true);
         setLastVersionContent(state.solfaText);
       }
     }

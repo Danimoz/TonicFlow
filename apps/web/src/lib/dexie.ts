@@ -109,7 +109,7 @@ export async function saveSolfaTextToIndexedDB(projectId: string, solfaText: str
   }
 }
 
-export async function createProjectVersion(projectId: string, notationContent: string, versionType: string = 'manual'): Promise<ProjectVersion> {
+export async function createProjectVersion(projectId: string, notationContent: string, versionType: string = 'manual', unload: boolean = false): Promise<ProjectVersion> {
   try {
     const project = await db.projects.get(projectId);
     if (!project) throw new Error("Project not found in IndexedDB");
@@ -128,7 +128,7 @@ export async function createProjectVersion(projectId: string, notationContent: s
     };
 
     await db.projectVersions.add(newVersion);
-    await syncVersionToBackend(newVersion);
+    await syncVersionToBackend(newVersion, unload);
     return newVersion;
   } catch (error) {
     console.error("Error creating project version in IndexedDB (Dexie):", error);
@@ -151,22 +151,28 @@ async function cleanUpVersionHistory(projectId: string): Promise<void> {
 }
 
 // Sync functions for backend integration
-export async function syncVersionToBackend(version: ProjectVersion): Promise<void> {
+export async function syncVersionToBackend(version: ProjectVersion, unload = false): Promise<void> {
   try {
-    const response = await fetch(`/api/sync/project-versions/${version.projectId}`, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
+    if (unload) {
+      navigator.sendBeacon('/api/sync/project-versions/' + version.projectId, JSON.stringify({
         notationContent: version.notationContent,
         versionType: version.versionType,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to sync version: ${response.statusText}`);
+      }));
+    } else {
+      const response = await fetch(`/api/sync/project-versions/${version.projectId}`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          notationContent: version.notationContent,
+          versionType: version.versionType,
+        }),
+      });
+  
+      if (!response.ok) {
+        throw new Error(`Failed to sync version: ${response.statusText}`);
+      }
+      console.log(`Synced version ${version.id} of project ${version.projectId} to backend`);
     }
-
-    console.log(`Synced version ${version.id} of project ${version.projectId} to backend`);
   } catch (error) {
     console.error('Error syncing version to backend:', error);
     throw error;
