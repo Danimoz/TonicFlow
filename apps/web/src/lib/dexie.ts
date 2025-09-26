@@ -42,7 +42,7 @@ export async function addProjectToIndexedDb(project: Project): Promise<void> {
 export async function getProjectFromIndexedDB(projectId: string): Promise<Project | null> {
   try {
     const project = await db.projects.get(projectId);
-    if (!project)  return null;
+    if (!project) return null;
 
     const currentVersion = await db.projectVersions.where('projectId').equals(projectId).and(version => version.isCurrent === true).first();
     if (!currentVersion) {
@@ -141,7 +141,11 @@ async function cleanUpVersionHistory(projectId: string): Promise<void> {
     const versions = await db.projectVersions.where('projectId').equals(projectId).toArray();
     if (versions.length < 5) return; // No cleanup needed
     // get the oldest version
-    const sortedVersions = versions.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    const sortedVersions = versions.sort((a, b) => {
+      const dateA = a.createdAt instanceof Date ? a.createdAt.getTime() : new Date(a.createdAt).getTime();
+      const dateB = b.createdAt instanceof Date ? b.createdAt.getTime() : new Date(b.createdAt).getTime();
+      return dateA - dateB;
+    });
     const oldestVersion = sortedVersions[0];
     await db.projectVersions.delete(oldestVersion!.id);
   } catch (error) {
@@ -161,13 +165,13 @@ export async function syncVersionToBackend(version: ProjectVersion, unload = fal
     } else {
       const response = await fetch(`/api/sync/project-versions/${version.projectId}`, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           notationContent: version.notationContent,
           versionType: version.versionType,
         }),
       });
-  
+
       if (!response.ok) {
         throw new Error(`Failed to sync version: ${response.statusText}`);
       }

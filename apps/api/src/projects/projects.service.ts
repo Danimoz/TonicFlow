@@ -180,9 +180,12 @@ export class ProjectsService {
 
     if (versions.length <= versionsToKeep) return;
 
-    const oldestVersion = versions[versions.length - 1];
-    await this.prisma.projectVersion.delete({
-      where: { id: oldestVersion?.id },
+    const toDelete = versions.slice(versionsToKeep).map(v => v.id);
+    const safeToDelete = toDelete.filter(id => !versions.find(v => v.id === id && v.isCurrent));
+    await this.prisma.$transaction(async (tx) => {
+      await tx.projectVersion.deleteMany({
+        where: { id: { in: safeToDelete } },
+      });
     });
   }
 

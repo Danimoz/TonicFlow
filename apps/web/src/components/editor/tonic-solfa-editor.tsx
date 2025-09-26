@@ -35,7 +35,7 @@ export default function TonicSolfaEditor() {
           value={currentText}
           onChange={(e) => setSolfaText(e.target.value)}
           placeholder="Enter tonic solfa notation...&#10;Example: S. d : - .r : m | f : - : s ||"
-          className="w-full min-h-[600px] p-4 resize-none bg-transparent font-mono text-lg leading-relaxed focus:outline-none focus:ring-0"
+          className="w-full min-h-[600px] p-4 resize-none bg-transparent font-mono text-lg leading-relaxed focus:outline-none focus:ring-0 overflow-x-auto whitespace-nowrap"
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"

@@ -1,5 +1,5 @@
 import { Project } from "@/app/(dashboard)/types";
-import { DEFAULT_EDITOR_PREFERENCES, EditorPreferences, KeySignature, TimeSignature } from "@/contexts/types";
+import { DEFAULT_EDITOR_PREFERENCES, EditorLayoutSettings, EditorPreferences, KeySignature, TimeSignature } from "@/contexts/types";
 import { diffArrays } from "diff";
 
 export function getPreferencesFromProject(project: Project): EditorPreferences {
@@ -100,3 +100,20 @@ export function generateSolfaDiff(oldNotation: string, newNotation: string) {
   const changePercentage = totalTokens > 0 ? (changedItems / totalTokens) * 100 : 0;
   return changePercentage;
 }
+
+export const defaultEditorLayoutSettings: EditorLayoutSettings = {
+  page: {
+    width: 900,
+    height: 1200,
+    margins: {
+      top: 40,
+      bottom: 40,
+      left: 40,
+      right: 40,
+    },
+  },
+  systemSpacing: 100,
+  measureSpacing: 20,
+  noteSpacingMultiplier: 1.0,
+  pageGap: 40,
+};

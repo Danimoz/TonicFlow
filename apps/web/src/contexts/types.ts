@@ -1,15 +1,21 @@
+import { Project } from "@/app/(dashboard)/types";
+
 export interface EditorContextValue {
   state: EditorState | null;
+  project: Project | null;
+  isLoading: boolean;
+  error: string | null;
+  layoutSettings: any; // Add proper type if available
   toggleSidebarCollapsed: () => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   setSolfaText: (text: string) => void;
   updatePreferences: (preferences: Partial<EditorPreferences>) => void;
-
   setPlaying: (isPlaying: boolean) => void;
   togglePlaying: () => void;
   stopPlayback: () => void;
   setViewMode: (mode: 'engrave' | 'write') => void;
   setPageLayout: (layout: 'horizontal' | 'vertical') => void;
+  setSelection: (selection: ScoreElementReference | undefined) => void;
 }
 
 export interface EditorPreferences {
@@ -31,11 +37,20 @@ export interface TimeSignature {
   denominator: number;
 }
 
+export interface ScoreElementReference {
+  systemIndex: number;
+  measureIndex: number;
+  partIndex: number;
+  noteIndex: number;
+  element: 'note' | 'lyric';
+}
+
 export interface EditorState {
   projectId: string;
   preferences: EditorPreferences;
   solfaText?: string;
   isPlaying: boolean;
+  selection?: ScoreElementReference;
 }
 
 export const DEFAULT_EDITOR_PREFERENCES: EditorPreferences = {
@@ -58,3 +73,21 @@ export type EditorAction =
   | { type: 'SET_IS_PLAYING'; payload: boolean }
   | { type: 'TOGGLE_PLAYING' }
   | { type: 'STOP_PLAYING' }
+  | { type: 'SET_SELECTION'; payload: ScoreElementReference | undefined };
+
+export interface EditorLayoutSettings {
+  page: {
+    width: number;
+    height: number;
+    margins: {
+      top: number;
+      bottom: number;
+      left: number;
+      right: number;
+    };
+  };
+  noteSpacingMultiplier: number;
+  measureSpacing: number;
+  systemSpacing: number;
+  pageGap: number
+}

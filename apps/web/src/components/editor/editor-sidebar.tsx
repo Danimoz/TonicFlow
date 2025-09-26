@@ -64,9 +64,10 @@ export function EditorSidebar() {
   return (
     <aside
       className={cn(
-        'fixed right-6 top-16 bg-background border border-border shadow-lg rounded-lg',
+        'fixed right-6 bg-background border border-border shadow-lg rounded-lg',
         'transition-all duration-300 ease-in-out overflow-hidden h-[calc(100vh-4rem)] max-h-[600px]',
         isCollapsed ? 'w-12' : 'w-64',
+        state?.preferences.viewMode === 'write' ? 'top-16' : 'top-24'
       )}
       role="complementary"
       aria-label="Editor tools Sidebar"
