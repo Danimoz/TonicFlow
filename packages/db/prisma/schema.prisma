@@ -52,7 +52,7 @@ model Project {
 model ProjectVersion {
   id              String   @id @default(cuid())
   projectId       String   @map("project_id")
-  notationContent String   @map("notation_content")
+  notationContent String   @map("notation_content") @db.Text
   versionType     String   @map("version_type")
   isCurrent       Boolean  @default(false) @map("is_current")
   createdAt       DateTime @default(now())

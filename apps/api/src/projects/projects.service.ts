@@ -167,7 +167,7 @@ export class ProjectsService {
       });
 
       return newVersion;
-    });
+    }, { timeout: 10000 });
   }
 
   async cleanUpVersionHistory(projectId: string, versionsToKeep: number = 5) {
@@ -176,6 +176,7 @@ export class ProjectsService {
       where: { projectId },
       orderBy: { createdAt: 'desc' },
       select: { id: true, isCurrent: true }, // Select only necessary fields
+
     });
 
     if (versions.length <= versionsToKeep) return;
