@@ -18,6 +18,7 @@ export function parse(tokens: Token[], startingMeasure: number = 1, partName: st
 
   // A temporary store for attributes that come BEFORE a note (e.g., dynamics, slur starts)
   let pendingAttributes: Partial<Note> = {};
+  let pendingDynamics: string[] = [];
 
   const findLastNote = (): Note | null => {
     for (let j = events.length - 1; j >= 0; j--) {
@@ -36,7 +37,7 @@ export function parse(tokens: Token[], startingMeasure: number = 1, partName: st
         // Start of a dynamic marking
         if (tokens[i + 1]?.type === 'DYNAMIC' && tokens[i + 2]?.type === 'RBRACKET') {
           const dynamicToken = tokens[i + 1];
-          if (dynamicToken) pendingAttributes.dynamic = dynamicToken.value;
+          if (dynamicToken) pendingDynamics.push(dynamicToken.value);
           i += 2; // Skip ahead to after the RBRACKET
           break;
         }
@@ -104,12 +105,13 @@ export function parse(tokens: Token[], startingMeasure: number = 1, partName: st
               // handle dynamics
 
               if (tupletToken.type === 'NOTE') {
-                const { note, newIndex } = parseNote(tupletContentTokens, currentTupletTokenIndex, currentMeasure, pendingAttributes);
+                const { note, newIndex } = parseNote(tupletContentTokens, currentTupletTokenIndex, currentMeasure, pendingAttributes, pendingDynamics);
                 if (note) {
                   note.duration = beatValue; // Base duration for a tuplet note
                   events.push(note);
                   tupletNotes.push(note);
                   pendingAttributes = {};
+                  pendingDynamics = [];
                   // newIndex from parseNote is relative to tupletContentTokens, so we can use it directly
                   currentTupletTokenIndex = newIndex;
                   continue; // Continue to next token
@@ -166,16 +168,18 @@ export function parse(tokens: Token[], startingMeasure: number = 1, partName: st
       }
 
       case 'NOTE': {
-        const { note, newIndex } = parseNote(tokens, i, currentMeasure, pendingAttributes);
+        const { note, newIndex } = parseNote(tokens, i, currentMeasure, pendingAttributes, pendingDynamics);
         if (note) {
           events.push(note);
           pendingAttributes = {};
+          pendingDynamics = [];
         }
         i = newIndex - 1;
         break;
       }
 
       case 'DOT':
+      case '32ND_NOTE':
       case 'COMMA': {
         events.push({
           type: 'delimiter',
@@ -200,7 +204,7 @@ export function parse(tokens: Token[], startingMeasure: number = 1, partName: st
         if (!isPrecededByNoteOrDash) {
           events.push({
             type: 'rest',
-            duration: token.type === 'DOT' ? 0.5 : 0.25,
+            duration: token.type === 'DOT' ? 0.5 : token.type === 'COMMA' ? 0.25 : 0.125,
             position: token.position,
             measureNumber: currentMeasure
           })
@@ -326,7 +330,7 @@ export function parse(tokens: Token[], startingMeasure: number = 1, partName: st
   return { events, errors, currentMeasure };
 }
 
-function parseNote(tokens: Token[], index: number, currentMeasure: number, pendingAttributes: Partial<Note>): { note: Note | null, newIndex: number } {
+function parseNote(tokens: Token[], index: number, currentMeasure: number, pendingAttributes: Partial<Note>, pendingDynamics: string[] = []): { note: Note | null, newIndex: number } {
   const baseNoteToken = tokens[index];
   if (!baseNoteToken || baseNoteToken.type !== 'NOTE') {
     return { note: null, newIndex: index };
@@ -368,6 +372,11 @@ function parseNote(tokens: Token[], index: number, currentMeasure: number, pendi
       beatValue = 0.25;
       break;
     }
+    if (pToken?.type === '32ND_NOTE') {
+      beatValue = 0.125;
+      break;
+    }
+
     if (pToken && ['COLON', 'BARLINE', 'DOUBLE_BARLINE'].includes(pToken.type)) break;
     j--;
   }
@@ -412,6 +421,7 @@ function parseNote(tokens: Token[], index: number, currentMeasure: number, pendi
   let duration = beatValue;
   if (tokens[currentIndex]?.type === 'DOT') duration = 0.5;
   else if (tokens[currentIndex]?.type === 'COMMA') duration = 0.25;
+  else if (tokens[currentIndex]?.type === '32ND_NOTE') duration = 0.125;
 
   const newNote: Note = {
     type: 'note',
@@ -423,7 +433,7 @@ function parseNote(tokens: Token[], index: number, currentMeasure: number, pendi
     position: baseNoteToken.position,
     ...(divisi ? { divisi } : {}),
     ...(slur ? { slur } : {}),
-    ...(pendingAttributes.dynamic ? { dynamic: pendingAttributes.dynamic } : {}),
+    ...(pendingDynamics.length > 0 ? { dynamics: [...pendingDynamics] } : {}),
     ...(pendingAttributes.articulation ? { articulation: pendingAttributes.articulation } : {}),
     ...(lyrics ? { lyric: lyrics } : {}),
     ...(pendingAttributes.graceNotes ? { graceNotes: pendingAttributes.graceNotes } : {}),

@@ -17,7 +17,7 @@ export const NoteGroup: React.FC<NoteGroupProps> = ({ measure, systemIndex, meas
 
   // Spacing constants (SVG units)
   const DYNAMIC_ABOVE_OFFSET = 12; // distance dynamic sits above note head baseline
-  const LYRIC_BASE_OFFSET = 18; // base distance lyrics sit below note
+  const LYRIC_BASE_OFFSET = 20; // base distance lyrics sit below note
   const LYRIC_LINE_GAP = 16; // per verse vertical gap
 
   const tupletGroups: any[] = [];
@@ -71,20 +71,34 @@ export const NoteGroup: React.FC<NoteGroupProps> = ({ measure, systemIndex, meas
               onClick={() => setSelection({ systemIndex, measureIndex, partIndex, noteIndex: index, element: 'note' })}
               className={`note-group ${isSelected ? 'selected' : ''}`}
             >
-              {/* Dynamic above note (centered) */}
-              {event.dynamic && (
-                <text
-                  className="dynamic"
-                  x={noteHeadX}
-                  y={event.y - DYNAMIC_ABOVE_OFFSET}
-                  textAnchor="middle"
-                >
-                  {event.dynamic}
-                </text>
+              {/* Dynamics above note (centered) */}
+              {event.dynamics && event.dynamics.length > 0 && (
+                <g className="dynamics">
+                  {event.dynamics.map((dynamic: string, dynamicIndex: number) => {
+                    // Calculate horizontal offset for multiple dynamics
+                    const totalDynamics = event.dynamics.length;
+                    const dynamicSpacing = 15; // pixels between dynamics
+                    const totalWidth = (totalDynamics - 1) * dynamicSpacing;
+                    const startX = noteHeadX - totalWidth / 2;
+                    const dynamicX = startX + dynamicIndex * dynamicSpacing;
+                    
+                    return (
+                      <text
+                        key={dynamicIndex}
+                        className="dynamic"
+                        x={dynamicX}
+                        y={event.y - DYNAMIC_ABOVE_OFFSET}
+                        textAnchor="middle"
+                      >
+                        {dynamic}
+                      </text>
+                    );
+                  })}
+                </g>
               )}
               
               {/* Note */}
-              <text x={event.x} y={event.y} className="note">
+              <text x={event.x} y={event.y} className="notes">
                 {event.graceNotes && (
                   <tspan fontSize="12" baselineShift="super" className="grace-note">{event.graceNotes?.map((note: any) => note.noteName).join(', ')}</tspan>
                 )}
@@ -122,35 +136,47 @@ export const NoteGroup: React.FC<NoteGroupProps> = ({ measure, systemIndex, meas
           );
         } else if (event.type === 'rest') {
           return (
-            <text key={index} x={event.x} y={event.y}>
-              {event.duration === 1 ? 'X' : event.duration === 0.5 ? '.' : ','}
+            <text key={index} x={event.x} y={event.y} className='notes'>
+              {event.duration === 1 && 'x'}
             </text>
           );
         } else if (event.type === 'note_extension') {
           let x = event.x;
           if (index > 0 && measure.events[index - 1]?.type === 'delimiter') {
-            const minOffset = 15;
+            const minOffset = 18;
             x = measure.events[index - 1].x + minOffset;
           }
           return (
-            <text key={index} x={x} y={event.y} textAnchor="middle">
+            <text key={index} x={x} y={event.y} textAnchor="middle" className='notes'>
               {event.value}
             </text>
           );
         } else if (event.type === 'delimiter') {
           const filteredDelims = ['barline', 'double_barline'];
           if (filteredDelims.includes(event.value)) return null;
-          // Improved offset: use minimum for single-letter notes, larger for octave markings
+          // Improved offset: calculate based on actual note width for proper spacing
           let x = event.x;
           if (index > 0 && measure.events[index - 1]?.type === 'note') {
             const prevNote = measure.events[index - 1];
-            const offset = 18; // Minimum space for single-letter notes
+            const noteName = prevNote.noteName as string;
+            
+            // Detect octave markings using proper octave characters
+            const hasOctaveMarking = /[₂ₗ'"″²]$/.test(noteName);
+            
+            let noteWidth;
+            if (hasOctaveMarking && noteName.length === 3) noteWidth = 14; // Base double char width + 5px for octave
+            else if (hasOctaveMarking && noteName.length == 2) noteWidth = 12; // Base single char width + 5px for octave
+            else if (prevNote.noteChange) noteWidth = (noteName.length + prevNote.noteChange.length) + 18; // Extra space for note change brackets
+            else noteWidth = (noteName.length * 8) + 2; // 8px per character + 2px buffer
+            
+            const minSpacing = 6; // Minimum gap between note and delimiter
+            const offset = noteWidth + minSpacing;
             x = prevNote.x + offset;
           }
 
 
           return (
-            <text key={index} x={x} y={event.y}>
+            <text key={index} x={x} y={event.y} className='notes'>
               {event.value}
             </text>
           );

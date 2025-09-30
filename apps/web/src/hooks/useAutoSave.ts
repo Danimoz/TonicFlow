@@ -7,7 +7,7 @@ import { EditorPreferences } from "@/contexts/types";
 
 const DEBOUNCE_DELAYS = {
   SOLFA_TEXT: 2130,
-  BACKEND_SYNC: 90000
+  BACKEND_SYNC: 5000
 } as const;
 
 export function useAutoSave(
@@ -37,13 +37,14 @@ export function useAutoSave(
     if (projectId && debouncedBackendSync !== undefined) {
       const syncToBackend = async () => {
         try {
-          await fetch(`/api/sync/project/${projectId}`, {
+          const res = await fetch(`/api/sync/project/${projectId}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
             },
             body: JSON.stringify({ notationContent: debouncedBackendSync })
           });
+          console.log("Successfully synced to backend:", await res.json());
         } catch (error) {
           console.error("Error syncing to backend:", error);
         }

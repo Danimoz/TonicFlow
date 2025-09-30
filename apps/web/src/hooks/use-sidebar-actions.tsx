@@ -1,8 +1,8 @@
 'use client';
 
+import { useEffect, useState } from "react";
 import { useEditor } from "@/contexts/editor-context";
-import { Edit, Eye, Monitor, Pause, Play, Smartphone, Square } from "lucide-react";
-import { useEffect } from "react";
+import { Edit, Eye, Monitor, Pause, Play, Smartphone, Square, Printer } from "lucide-react";
 
 export interface SidebarAction {
   id: string;
@@ -21,6 +21,8 @@ export function useSidebarActions() {
     stopPlayback,
     togglePlaying,
   } = useEditor();
+
+  const [showPrintDialog, setShowPrintDialog] = useState(false);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -58,6 +60,14 @@ export function useSidebarActions() {
       icon: Edit,
       onClick: () => setViewMode('write'),
       isActive: state?.preferences.viewMode === 'write',
+      group: 'view'
+    },
+    {
+      id: 'print-mode',
+      label: 'Print Mode',
+      onClick : () => setShowPrintDialog(true),
+      isActive: showPrintDialog,
+      icon: Printer,
       group: 'view'
     },
     {

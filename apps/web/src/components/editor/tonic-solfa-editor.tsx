@@ -29,7 +29,7 @@ export default function TonicSolfaEditor() {
   return (
     <div className="flex flex-col h-full max-w-full">
       <EditorToolbar insertSymbol={insertSymbol} />
-      <div className="relative flex-1">
+      <div className="relative flex-1 pt-[4.5rem]">
         <Textarea
           ref={textareaRef}
           value={currentText}

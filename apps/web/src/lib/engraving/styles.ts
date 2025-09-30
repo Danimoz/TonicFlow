@@ -24,6 +24,12 @@ export const availableFonts: FontDefinition[] = [
     family: 'MusGlyphs',
     url: '/fonts/MusGlyphs.otf',
     fallbacks: ['serif']
+  },
+  {
+    name: 'Calendula',
+    family: 'Calendula',
+    url: '/fonts/Calendula.otf',
+    fallbacks: ['serif']
   }
 ]
 
@@ -75,6 +81,11 @@ export interface LayoutSettings {
       weight?: string;
       style?: string;
     };
+    notes: {
+      font: FontDefinition;
+      size: number;
+      weight: string;
+    }
     tuplet: {
       font: FontDefinition;
       size: number;
@@ -127,6 +138,11 @@ export const defaultLayoutSettings: LayoutSettings = {
     timeSignature: {
       font: availableFonts[2]!,
       size: 18,
+      weight: 'bold',
+    },
+    notes: {
+      font: availableFonts[3]!,
+      size: 14,
       weight: 'bold',
     },
     lyrics: {
@@ -200,6 +216,12 @@ export function getSvgStyles(settings: LayoutSettings = defaultLayoutSettings): 
       font-weight: ${settings.fonts.subtitle.weight};
       font-style: ${settings.fonts.subtitle.style};
       fill: ${settings.colors.text};
+    }
+    .notes{
+      font-family: ${getFontFamily(settings.fonts.notes.font)};
+      font-size: ${settings.fonts.notes.size}px;
+      font-weight: ${settings.fonts.notes.weight};
+      fill: ${settings.colors.notes};
     }
     .time-signature {
       font-family: ${getFontFamily(settings.fonts.timeSignature.font)};
@@ -280,5 +302,12 @@ export function getSvgStyles(settings: LayoutSettings = defaultLayoutSettings): 
     }
     .note-group { cursor: pointer; }
     .note-group .dynamic { pointer-events: none; }
+    .measure-number {
+      font-family: ${getFontFamily(settings.fonts.subtitle.font)};
+      font-size: ${settings.fonts.subtitle.size - 2}px;
+      font-weight: bold;
+      fill: ${settings.colors.text};
+      opacity: 0.7;
+    }
   `;
 }

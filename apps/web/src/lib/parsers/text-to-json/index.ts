@@ -50,9 +50,25 @@ export function parseNotationToJSON(notation: string, timeSignature: TimeSignatu
           measures.set(measureNum, measure);
         }
         (measure.parts[partName.long] ??= []).push(event);
+        
+        // Check for double barline delimiters and set the measure's barlineType
+        if (event.type === 'delimiter' && event.value === 'double_barline') {
+          measure.barlineType = 'double';
+        }
       }
     }
   }
+
+  // Set the final barline for the last measure
+  if (measures.size > 0) {
+    const measureNumbers = Array.from(measures.keys()).sort((a, b) => a - b);
+    const lastMeasureNumber = measureNumbers[measureNumbers.length - 1];
+    if (typeof lastMeasureNumber === "number") {
+      const lastMeasure = measures.get(lastMeasureNumber);
+      if (lastMeasure) lastMeasure.barlineType = 'final';
+    }
+  }
+
   return { measures, errors };
 }
 
@@ -102,39 +118,38 @@ export function addDynamicToNote(solfaText: string, selection: ScoreElementRefer
 
   let workingContent = partContent;
 
-  // Look for existing dynamic before this note token
+  // Look for existing dynamics before this note token
   const beforeNote = workingContent.substring(0, targetNoteToken.position);
   const afterNote = workingContent.substring(targetNoteToken.position);
 
-  // Find the last dynamic bracket before this note
+  // Find all dynamic brackets before this note
   const dynamicMatches = [...beforeNote.matchAll(/\[([^\]]+)\]/g)];
-  const lastDynamicMatch = dynamicMatches[dynamicMatches.length - 1];
-
-  let existingDynamic: string | null = null;
-  let dynamicStartPos = -1;
-  let dynamicEndPos = -1;
-
-  if (lastDynamicMatch && lastDynamicMatch.index !== undefined && lastDynamicMatch[1]) {
-    existingDynamic = lastDynamicMatch[1];
-    dynamicStartPos = lastDynamicMatch.index;
-    dynamicEndPos = lastDynamicMatch.index + lastDynamicMatch[0].length;
+  
+  // Extract existing dynamics and their positions
+  const existingDynamics: string[] = [];
+  const dynamicPositions: Array<{start: number, end: number, dynamic: string}> = [];
+  
+  for (const match of dynamicMatches) {
+    if (match.index !== undefined && match[1]) {
+      existingDynamics.push(match[1]);
+      dynamicPositions.push({
+        start: match.index,
+        end: match.index + match[0].length,
+        dynamic: match[1]
+      });
+    }
   }
 
-  if (existingDynamic === dynamic) {
-    // Toggle off - remove the existing dynamic
-    workingContent = workingContent.substring(0, dynamicStartPos) + workingContent.substring(dynamicEndPos);
+  // Check if the dynamic already exists
+  const existingIndex = existingDynamics.indexOf(dynamic);
+  
+  if (existingIndex !== -1) {
+    // Toggle off - remove the existing dynamic bracket
+    const positionToRemove = dynamicPositions[existingIndex];
+    if (positionToRemove) workingContent = workingContent.substring(0, positionToRemove.start) + workingContent.substring(positionToRemove.end);
   } else {
-    // Remove existing dynamic if present, then add new one
-    if (existingDynamic) {
-      workingContent = workingContent.substring(0, dynamicStartPos) + workingContent.substring(dynamicEndPos);
-      // Recalculate target position after removal
-      const adjustment = dynamicEndPos - dynamicStartPos;
-      const newTargetPos = targetNoteToken.position - adjustment;
-      workingContent = workingContent.substring(0, newTargetPos) + `[${dynamic}]` + workingContent.substring(newTargetPos);
-    } else {
-      // Just add the new dynamic before the note
-      workingContent = beforeNote + `[${dynamic}]` + afterNote;
-    }
+    // Add new dynamic bracket before the note
+    workingContent = beforeNote + `[${dynamic}]` + afterNote;
   }
 
   // Rebuild the part line and system

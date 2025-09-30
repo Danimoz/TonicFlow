@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useEditor } from '@/contexts/editor-context';
 import { useLayoutSettings } from '@/hooks/useLayoutSettings';
 import { parseNotationToJSON } from '@/lib/parsers/text-to-json';
@@ -21,9 +21,9 @@ const calculateEventWidth = (event: MusicalEvent): number => {
     let width = NOTE_WIDTH;
     if (event.octave !== 0) width += 8
     if (event.articulation) width += ARTICULATION_WIDTH;
-    if (event.dynamic) width += DYNAMIC_WIDTH;
+    if (event.dynamics && event.dynamics.length > 0) width += DYNAMIC_WIDTH * event.dynamics.length;
     if (event.graceNotes) width += event.graceNotes.length * 8;
-    if (event.noteChange) width += (event.noteChange.length + 1.5) * 12;
+    if (event.noteChange) width += (event.noteChange.length + 2.5) * 12.5;
     return width;
   }
   if (event.type === 'rest') return REST_WIDTH;
@@ -82,9 +82,51 @@ export function useScoreLayout() {
   const layout = useMemo(() => {
     if (!parsedNotes) return null;
 
-    const svgWidth = 816; // Standard page width
+    // Use A4 paper dimensions for consistent printing layout
+    // A4 width: 210mm = 8.27 inches = 794 pixels at 96 DPI. 96 DPI is a CSS/web standard (logical pixels
+    const svgWidth = 794; // Fixed A4 width for proper printing
+    const svgHeight = 1123; // A4 height: 297mm = 11.69 inches = 1123 pixels at 96 DPI
     const partNameGutter = 80;
     const staffHeight = 40;
+
+    // Helper function to detect lyric-tuplet conflicts and calculate part spacing adjustments
+    const calculatePartSpacingAdjustments = (system: any[], partNames: string[]) => {
+      const adjustments: number[] = new Array(partNames.length).fill(0);
+      
+      // For each measure in the system
+      system.forEach(measure => {
+        // For each part (except the last one)
+        for (let partIndex = 0; partIndex < partNames.length - 1; partIndex++) {
+          const currentPartName = partNames[partIndex];
+          const nextPartName = partNames[partIndex + 1];
+          
+          const currentPartEvents = currentPartName ? measure.parts[currentPartName] || [] : [];
+          const nextPartEvents = nextPartName ? measure.parts[nextPartName] || [] : [];
+          
+          // Check if current part has lyrics and next part has tuplets
+          const currentPartHasLyrics = currentPartEvents.some((event: any) => 
+            event.type === 'note' && event.lyric
+          );
+          const nextPartHasTuplets = nextPartEvents.some((event: any) => 
+            event.type === 'note' && event.tuplet
+          );
+          const nextPartHasDynamics = nextPartEvents.some((event: any) => 
+            event.type === 'note' && event.dynamics && event.dynamics.length > 0
+          );
+          
+          // If conflict detected, add spacing adjustment for the next part
+          if (currentPartHasLyrics && nextPartHasTuplets) {
+            adjustments[partIndex + 1] = Math.max(adjustments[partIndex + 1] ?? 0, 6);
+          }
+          if (currentPartHasLyrics && nextPartHasDynamics) {
+            adjustments[partIndex + 1] = Math.max(adjustments[partIndex + 1] ?? 0, 2.75);
+          }
+        }
+      });
+      
+      return adjustments;
+    };
+
     const systemSpacing = 60;
 
     const allPartNames = new Set<string>();
@@ -161,12 +203,33 @@ export function useScoreLayout() {
       systems.push(currentLine);
     }
 
+    let currentPage = 1;
+    let currentSystemY = yOffset;
+    
+    // Calculate system height including potential lyric-tuplet spacing adjustments
+    const calculateSystemHeight = (system: any[]) => {
+      const spacingAdjustments = calculatePartSpacingAdjustments(system, partNames);
+      const totalAdjustments = spacingAdjustments.reduce((sum, adj) => sum + adj, 0);
+      return numParts * staffHeight + systemSpacing + totalAdjustments;
+    };
+
     const layoutSystems = systems.map((system, line) => {
-      const systemYOffset = yOffset + line * (numParts * staffHeight + systemSpacing);
+      const systemHeight = calculateSystemHeight(system);
+      if (currentSystemY + systemHeight > svgHeight - layoutSettings.page.margins.bottom && line > 0) {
+        currentPage++;
+        currentSystemY = layoutSettings.page.margins.top;
+      }
+      const systemYOffset = currentSystemY;
+      currentSystemY += systemHeight;
       const isLastLine = line === systems.length - 1;
 
+      // Calculate spacing adjustments for lyric-tuplet conflicts
+      const spacingAdjustments = calculatePartSpacingAdjustments(system, partNames);
+
       const staves = partNames.map((partName, partIndex) => {
-        const staffY = systemYOffset + partIndex * staffHeight;
+        // Calculate cumulative spacing adjustments up to this part
+        const cumulativeAdjustment = spacingAdjustments.slice(0, partIndex + 1).reduce((sum, adj) => sum + adj, 0);
+        const staffY = systemYOffset + partIndex * staffHeight + cumulativeAdjustment;
         let currentX = layoutSettings.page.margins.left + partNameGutter;
 
         const measures = system.map(measure => {
@@ -220,43 +283,56 @@ export function useScoreLayout() {
           startX: layoutSettings.page.margins.left,
           endX: currentX,
           measures,
+
         };
       });
 
       return {
         y: systemYOffset,
         staves,
+        page: currentPage,
+        spacingAdjustments
       };
     });
 
-    const slurPaths: string[] = [];
+    const slurPaths: { [page: number]: string[] } = {};
     const openSlurs: { [key: string]: any } = {};
 
     layoutSystems.forEach(system => {
+      const page = system.page;
+      if (!slurPaths[page]) {
+        slurPaths[page] = [];
+      }
       system.staves.forEach(staff => {
         staff.measures.forEach(measure => {
           measure.events.forEach((event: any) => {
             if (event.type === 'note') {
               if (event.slur === 'start') {
-                openSlurs[staff.partName] = event;
+                openSlurs[staff.partName] = { ...event, page };
               } else if (event.slur === 'end' && openSlurs[staff.partName]) {
                 const startNote = openSlurs[staff.partName];
-                const endNote = event;
+                // Assuming slurs do not cross pages for now.
+                if (startNote.page === page) {
+                  const endNote = event;
 
-                const startX = startNote.x + 5; // Offset to start from the edge of the note
-                const startY = startNote.y + 5; // Position below the note
-                const endX = endNote.x;
-                const endY = endNote.y + 5;
+                  const startX = startNote.x + 5;
+                  const startY = startNote.y + 5;
+                  const endX = endNote.x;
+                  const endY = endNote.y + 5;
 
-                const controlX1 = startX;
-                const controlY1 = startY + 5; // Control point for downward curve
-                const controlX2 = endX;
-                const controlY2 = endY + 5; // Control point for downward curve
+                  const controlX1 = startX;
+                  const controlY1 = startY + 5;
+                  const controlX2 = endX;
+                  const controlY2 = endY + 5;
 
-                const path = `M ${startX},${startY} C ${controlX1},${controlY1} ${controlX2},${controlY2} ${endX},${endY}`;
-                slurPaths.push(path);
+                  const path = `M ${startX},${startY} C ${controlX1},${controlY1} ${controlX2},${controlY2} ${endX},${endY}`;
+                  if (!slurPaths[page]) {
+                    slurPaths[page] = [];
+                  }
+                  slurPaths[page].push(path);
 
-                delete openSlurs[staff.partName];
+                  delete openSlurs[staff.partName];
+                }
               }
             }
           });
@@ -266,6 +342,7 @@ export function useScoreLayout() {
 
     return {
       svgWidth,
+      svgHeight,
       systems: layoutSystems,
       metadataLayout,
       longToShortPartMap,

@@ -106,10 +106,10 @@ export const defaultEditorLayoutSettings: EditorLayoutSettings = {
     width: 900,
     height: 1200,
     margins: {
-      top: 40,
+      top: 72,
       bottom: 40,
-      left: 40,
-      right: 40,
+      left: 45,
+      right: 45,
     },
   },
   systemSpacing: 100,

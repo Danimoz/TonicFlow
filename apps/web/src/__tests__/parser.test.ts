@@ -121,4 +121,42 @@ describe('Parser Tests', () => {
     // expect(graceNotes.length).toBe(1);
     // expect(graceNotes[0].graceNotes).toEqual([{ noteName: 'm', octave: 0 }, { noteName: 'r', octave: 0 }]);
   });
+
+  it('Should handle multiple dynamics correctly', () => {
+    // Test input with multiple consecutive dynamic brackets
+    const input = '[p][cresc]d : [mf][dim]r : [f][rit]m : s';
+    const tokens = tokenize(input);
+    const { events } = parse(tokens, 1, 'Soprano');
+
+    // Filter to get only note events
+    const notes = events.filter(event => event.type === 'note') as Note[];
+    expect(notes.length).toBe(4);
+
+    // First note should have 'p' and 'cresc' dynamics
+    const firstNote = notes[0];
+    expect(firstNote?.dynamics).toBeDefined();
+    expect(firstNote?.dynamics).toEqual(['p', 'cresc']);
+
+    // Second note should have 'mf' and 'dim' dynamics
+    const secondNote = notes[1];
+    expect(secondNote?.dynamics).toBeDefined();
+    expect(secondNote?.dynamics).toEqual(['mf', 'dim']);
+
+    // Third note should have 'f' and 'rit' dynamics
+    const thirdNote = notes[2];
+    expect(thirdNote?.dynamics).toBeDefined();
+    expect(thirdNote?.dynamics).toEqual(['f', 'rit']);
+
+    // Fourth note should have no dynamics
+    const fourthNote = notes[3];
+    expect(fourthNote?.dynamics).toEqual([]);
+  });
+
+  it('should handle rests correctly', () => {
+    const input = "s(last!) : - : .,⹁ d'"
+    const tokens = tokenize(input);
+    const { events } = parse(tokens, 1, 'Soprano');
+    console.log(events);
+
+  })
 });

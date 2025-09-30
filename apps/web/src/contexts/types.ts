@@ -18,6 +18,8 @@ export interface EditorContextValue {
   setSelection: (selection: ScoreElementReference | undefined) => void;
 }
 
+export type ViewMode = 'engrave' | 'write' | 'print'
+
 export interface EditorPreferences {
   sidebarCollapsed: boolean;
   bpm: number;

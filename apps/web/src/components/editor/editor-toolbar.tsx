@@ -26,32 +26,38 @@ export default function EditorToolbar({ insertSymbol }: EditorToolbarProps) {
     },
     {
       id: 'insert-high-octave-marking',
-      label: "'",
+      label: "1 Octave Higher",
       content: <span className="text-lg">′</span>,
       onClick: () => insertSymbol("'")
     },
     {
       id: 'insert-double-high-octave-marking',
-      label: "″",
+      label: "2 Octaves Higher",
       content: <span className="text-lg">″</span>,
       onClick: () =>  insertSymbol("″")
     },
     {
       id: 'insert-low-octave-marking',
-      label: "ₗ",
+      label: "1 octave lower",
       content: <span className="text-lg">ₗ</span>,
       onClick: () => insertSymbol("ₗ")
     },
     {
       id: 'insert-double-low-octave-marking',
-      label: "₂",
+      label: "2 Octaves Lower",
       content: <span className="text-lg">₂</span>,
       onClick: () => insertSymbol("₂")
+    },
+    {
+      id: 'insert-32nd-note',
+      onClick: () => insertSymbol('⹁'),
+      label: '32nd Note',
+      content: <span className="text-lg">⹁</span>
     }
   ]
 
   return (
-    <div className="flex items-center gap-2 p-2 border-b bg-muted/30">
+    <div className="fixed top-3 left-9 right-0 z-30 flex items-center gap-2 p-3 border-b bg-background/95 backdrop-blur-sm shadow-sm">
       {toolbarItems.map(item => (
         <Button
           key={item.id}

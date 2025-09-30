@@ -54,7 +54,8 @@ type TokenType =
   | 'NUMBER'
   | 'LANGLE' // <
   | 'RANGLE' // >
-  | 'OTHER';
+  | 'OTHER'
+  | '32ND_NOTE';
 
 
 export type DelimiterType =
@@ -84,7 +85,7 @@ export interface Note {
   measureNumber: number;
   lyric?: { [key: string]: string };
   slur?: 'start' | 'end';
-  dynamic?: string;
+  dynamics?: string[];
   articulation?: string;
   divisi?: { [part: string]: Partial<Note> };
   tuplet?: 'start' | 'stop';
@@ -136,7 +137,7 @@ export interface Measure {
   },
   timeSignature?: TimeSignature;
   keySignature?: string;
-  barlineType?: 'single' | 'double' | 'repeat_start' | 'repeat_end';
+  barlineType?: 'single' | 'double' | 'repeat_start' | 'repeat_end' | 'final';
   segno?: boolean;
   tempoChange?: string;
 }

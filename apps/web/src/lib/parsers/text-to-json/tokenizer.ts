@@ -1,7 +1,11 @@
 import { Token } from "../interfaces";
 
-const ARTICULATIONS = ['decresc', 'cresc', 'dim', 'accel', 'rit'];
-const DYNAMICS = ['ppp', 'pp', 'p', 'mp', 'mf', 'fp', 'sfz', 'f', 'ff', 'fff'];
+const ARTICULATIONS = ['accel', 'rit'];
+const DYNAMICS = [
+  'ppp', 'pp', 'p', 'mp', 'mf', 'f', 'ff', 'fff',
+  'fp', 'sfz', 'rf', 'sf', 'sfp', 'nie',
+  'cresc', 'dim', 'dec'
+];
 const NOTES = ['de', 'ra', 're', 'ma', 'fe', 'ba', 'sa', 'se', 'la', 'le', 'ta', 'd', 'r', 'm', 'f', 's', 'l', 't'];
 
 function getLongestMatch(substring: string, options: string[]): string | null {
@@ -165,7 +169,7 @@ export function tokenize(partContent: string): Token[] {
     const singleCharTokens: { [key: string]: Token['type'] } = {
       '(': 'LPAREN', ')': 'RPAREN', '[': 'LBRACKET', ']': 'RBRACKET', '{': 'LBRACE', '}': 'RBRACE',
       '<': 'LANGLE', '>': 'RANGLE', 'g': 'GRACE_NOTE',
-      '~': 'SLUR', '.': 'DOT', ':': 'COLON', ',': 'COMMA', '-': 'DASH', '/': 'SLASH', '|': 'BARLINE',
+      '~': 'SLUR', '.': 'DOT', ':': 'COLON', ',': 'COMMA', '-': 'DASH', '/': 'SLASH', '|': 'BARLINE', '⹁': '32ND_NOTE',
       'x': 'WHOLE_REST', '^': 'FERMATA', '$': 'SEGNO'
     };
 

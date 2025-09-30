@@ -7,7 +7,7 @@ interface ScoreMetadataProps {
 export const ScoreMetadata: React.FC<ScoreMetadataProps> = ({ layout }) => {
   if (!layout) return null;
 
-  const { metadataLayout, svgWidth, layoutSettings, state, project } = layout;
+  const { metadataLayout } = layout;
 
   return (
     <>
