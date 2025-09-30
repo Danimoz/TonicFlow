@@ -1,5 +1,6 @@
 'use client';
-// ...existing code...
+
+
 import { Card } from "@repo/ui/components/card";
 import { getSvgStyles } from "@/lib/engraving/styles";
 import { useScoreLayout } from "@/hooks/useScoreLayout";
@@ -9,13 +10,16 @@ import { Slurs } from "./engraving/Slurs";
 import { useEditor } from "@/contexts/editor-context";
 import ProjectLoading from "@/app/(dashboard)/project/[id]/loading";
 import EngravingToolbar from "./engraving/engraving-toolbar";
-import { Input } from "@repo/ui/components/input";
+import { PrintableScore } from "./engraving/PrintableScore";
+import { usePrint } from "@/hooks/usePrint";
 
 export default function EngravingMode() {
+  const { state } = useEditor();
   const layout = useScoreLayout();
   const { setSelection } = useEditor();
-  // ...existing code...
+  const { printRef, handlePrint } = usePrint();
 
+  if (!state?.solfaText) return <ProjectLoading />;
   if (!layout) return <ProjectLoading />;
 
   const { svgWidth, svgHeight, systems, slurPaths } = layout;
@@ -31,13 +35,13 @@ export default function EngravingMode() {
 
   const handleBackgroundClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (e.target === e.currentTarget) {
-      setSelection(undefined);
+      setSelection?.(undefined); // Use optional chaining in case it's undefined
     }
   };
 
   return (
     <div className="h-full w-full flex flex-col">
-      <EngravingToolbar />
+      <EngravingToolbar onPrint={handlePrint} />
 
       <Card className="flex-grow w-full mt-20 overflow-auto bg-accent/10">
         {Object.keys(pages).map(pageNum => {
@@ -72,7 +76,7 @@ export default function EngravingMode() {
                   <System
                     key={index}
                     system={system}
-                    systemIndex={index}
+                    systemIndex={system.globalSystemIndex}
                     layout={layout}
                   />
                 ))}
@@ -93,6 +97,18 @@ export default function EngravingMode() {
           );
         })}
       </Card>
+      
+      {/* Hidden printable score for printing */}
+      <div style={{ 
+        position: 'absolute', 
+        left: '-9999px', 
+        top: '-9999px',
+        width: '794px',
+        height: 'auto',
+        overflow: 'hidden'
+      }}>
+        <PrintableScore ref={printRef} layout={layout} />
+      </div>
     </div>
   );
 }

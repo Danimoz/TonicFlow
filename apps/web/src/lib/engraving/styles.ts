@@ -4,7 +4,7 @@ export interface FontDefinition {
   name: string;
   family: string;
   url?: string; // Optional URL to load the font from
-  fallbacks: string[]; // Optional list 
+  fallbacks: string[]; 
 }
 
 export const availableFonts: FontDefinition[] = [
@@ -22,7 +22,7 @@ export const availableFonts: FontDefinition[] = [
   {
     name: 'MusGlyphs',
     family: 'MusGlyphs',
-    url: '/fonts/MusGlyphs.otf',
+    url: '/fonts/MusGlyphs.woff2',
     fallbacks: ['serif']
   },
   {

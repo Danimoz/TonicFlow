@@ -13,7 +13,7 @@ export class TonicFlowDatabase extends Dexie {
     super('TonicFlowDB')
     this.version(3).stores({
       projects: 'id, title, subTitle, composer, arranger, keySignature, timeSignature, yearOfComposition, tempo, userId, createdAt, updatedAt',
-      projectVersions: 'id, projectId, notationContent, versionType, createdAt, updatedAt',
+      projectVersions: 'id, projectId, notationContent, versionType, isCurrent, createdAt, updatedAt',
       editorConfig: 'projectId, sidebarCollapsed, bpm, viewMode, pageLayout'
     });
   }
@@ -153,7 +153,6 @@ async function cleanUpVersionHistory(projectId: string): Promise<void> {
     throw error; // Re-throw to allow calling component to handle
   }
 }
-
 // Sync functions for backend integration
 export async function syncVersionToBackend(version: ProjectVersion, unload = false): Promise<void> {
   try {
@@ -179,29 +178,6 @@ export async function syncVersionToBackend(version: ProjectVersion, unload = fal
     }
   } catch (error) {
     console.error('Error syncing version to backend:', error);
-    throw error;
-  }
-}
-
-export async function syncProjectToBackend(project: Project): Promise<void> {
-  try {
-    const { currentVersion, preferences, ...projectData } = project;
-
-    const response = await fetch(`/api/projects/${project.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(projectData),
-    });
-
-    if (!response.ok) {
-      throw new Error(`Failed to sync project: ${response.statusText}`);
-    }
-
-    console.log(`Synced project ${project.id} to backend`);
-  } catch (error) {
-    console.error('Error syncing project to backend:', error);
     throw error;
   }
 }

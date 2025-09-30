@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { useEditor } from '@/contexts/editor-context';
 import { useLayoutSettings } from '@/hooks/useLayoutSettings';
 import { parseNotationToJSON } from '@/lib/parsers/text-to-json';
@@ -17,45 +17,39 @@ const PADDING = 8;
 const MIN_MEASURE_WIDTH = 50;
 
 const calculateEventWidth = (event: MusicalEvent): number => {
+  let width = 0;
+  
   if (event.type === 'note') {
-    let width = NOTE_WIDTH;
-    if (event.octave !== 0) width += 8
-    if (event.articulation) width += ARTICULATION_WIDTH;
-    if (event.dynamics && event.dynamics.length > 0) width += DYNAMIC_WIDTH * event.dynamics.length;
-    if (event.graceNotes) width += event.graceNotes.length * 8;
-    if (event.noteChange) width += (event.noteChange.length + 2.5) * 12.5;
-    return width;
+    width += NOTE_WIDTH;
+    if (event.articulation && event.articulation.length > 0) {
+      width += ARTICULATION_WIDTH * event.articulation.length;
+    }
+    if (event.dynamics && event.dynamics.length > 0) {
+      width += DYNAMIC_WIDTH * event.dynamics.length;
+    }
+  } else if (event.type === 'rest') {
+    width += REST_WIDTH;
+  } else if (event.type === 'delimiter') {
+    width += DELIMITER_WIDTH;
   }
-  if (event.type === 'rest') return REST_WIDTH;
-  if (event.type === 'note_extension') return 4;
-  if (event.type === 'delimiter') {
-    if (event.value === 'barline' || event.value === 'double_barline') return 5;
-    return DELIMITER_WIDTH;
-  }
-  return 0;
+  
+  return width;
 };
 
 const calculateMeasureWidth = (measure: Measure): number => {
   let maxPartWidth = 0;
 
-  if (measure.isPickup) {
-    return 80;
-  }
-
-  const partNames = Object.keys(measure.parts);
-
-  for (const partName of partNames) {
-    const partEvents = measure.parts[partName] || [];
+  for (const [, events] of Object.entries(measure.parts)) {
     let eventsWidth = 0;
     let lyricWidth = 0;
 
-    partEvents.forEach(event => {
+    for (const event of events) {
       eventsWidth += calculateEventWidth(event);
       if (event.type === 'note' && event.lyric) {
         const lyricText = Object.values(event.lyric).join(' ');
         lyricWidth += lyricText.length * LYRIC_CHAR_WIDTH;
       }
-    });
+    }
 
     const partWidth = Math.max(eventsWidth, lyricWidth);
     if (partWidth > maxPartWidth) maxPartWidth = partWidth;
@@ -67,10 +61,42 @@ const calculateMeasureWidth = (measure: Measure): number => {
 export function useScoreLayout() {
   const { state, project } = useEditor();
   const { layoutSettings } = useLayoutSettings();
+  
+  // Cache for parsed notes - only updates when switching to engrave mode
+  const cachedParsedNotesRef = useRef<any>(null);
+  const lastCachedSolfaTextRef = useRef<string>('');
+  const lastCachedTimeSignatureRef = useRef<any>(null);
 
-  const parsedNotes = useMemo(() => {
-    return parseNotationToJSON(state?.solfaText ?? '', state?.preferences.timeSignature ?? { numerator: 4, denominator: 4 });
-  }, [state?.solfaText, state?.preferences.timeSignature]);
+  // Update cache when switching to engrave mode
+  useEffect(() => {
+    if (state?.preferences?.viewMode === 'engrave' && state?.solfaText) {
+      const currentTimeSignature = state?.preferences.timeSignature ?? { numerator: 4, denominator: 4 };
+      
+      // Only update cache if solfa text or time signature has changed
+      if (
+        lastCachedSolfaTextRef.current !== state.solfaText ||
+        JSON.stringify(lastCachedTimeSignatureRef.current) !== JSON.stringify(currentTimeSignature)
+      ) {
+        cachedParsedNotesRef.current = parseNotationToJSON(state.solfaText, currentTimeSignature);
+        lastCachedSolfaTextRef.current = state.solfaText;
+        lastCachedTimeSignatureRef.current = currentTimeSignature;
+      }
+    }
+  }, [state?.preferences?.viewMode, state?.solfaText, state?.preferences.timeSignature]);
+
+  // Initialize cache on first load if we're already in engrave mode
+  useEffect(() => {
+    if (
+      state?.preferences?.viewMode === 'engrave' && 
+      state?.solfaText && 
+      !cachedParsedNotesRef.current
+    ) {
+      const currentTimeSignature = state?.preferences.timeSignature ?? { numerator: 4, denominator: 4 };
+      cachedParsedNotesRef.current = parseNotationToJSON(state.solfaText, currentTimeSignature);
+      lastCachedSolfaTextRef.current = state.solfaText;
+      lastCachedTimeSignatureRef.current = currentTimeSignature;
+    }
+  }, [state?.preferences?.viewMode, state?.solfaText, state?.preferences.timeSignature]);
 
   const longToShortPartMap = useMemo(() => {
     return Object.entries(partMap).reduce((acc, [, value]) => {
@@ -80,6 +106,11 @@ export function useScoreLayout() {
   }, []);
 
   const layout = useMemo(() => {
+    // Only use cached parsed notes in engrave mode
+    const parsedNotes = state?.preferences?.viewMode === 'engrave' 
+      ? cachedParsedNotesRef.current 
+      : null;
+
     if (!parsedNotes) return null;
 
     // Use A4 paper dimensions for consistent printing layout
@@ -118,8 +149,10 @@ export function useScoreLayout() {
           if (currentPartHasLyrics && nextPartHasTuplets) {
             adjustments[partIndex + 1] = Math.max(adjustments[partIndex + 1] ?? 0, 6);
           }
+          
+          // If conflict detected, add spacing adjustment for the next part
           if (currentPartHasLyrics && nextPartHasDynamics) {
-            adjustments[partIndex + 1] = Math.max(adjustments[partIndex + 1] ?? 0, 2.75);
+            adjustments[partIndex + 1] = Math.max(adjustments[partIndex + 1] ?? 0, 6);
           }
         }
       });
@@ -130,9 +163,9 @@ export function useScoreLayout() {
     const systemSpacing = 60;
 
     const allPartNames = new Set<string>();
-    const measuresArray = Array.from(parsedNotes.measures.values());
+    const measuresArray = Array.from(parsedNotes.measures.values()) as Measure[];
 
-    measuresArray.forEach(measure => {
+    measuresArray.forEach((measure: Measure) => {
       Object.keys(measure.parts).forEach(partName => allPartNames.add(partName));
     });
     const partNames = Array.from(allPartNames);
@@ -214,7 +247,7 @@ export function useScoreLayout() {
     };
 
     const layoutSystems = systems.map((system, line) => {
-      const systemHeight = calculateSystemHeight(system);
+      const systemHeight = calculateSystemHeight(system)
       if (currentSystemY + systemHeight > svgHeight - layoutSettings.page.margins.bottom && line > 0) {
         currentPage++;
         currentSystemY = layoutSettings.page.margins.top;
@@ -291,7 +324,8 @@ export function useScoreLayout() {
         y: systemYOffset,
         staves,
         page: currentPage,
-        spacingAdjustments
+        spacingAdjustments,
+        globalSystemIndex: line // Add global system index
       };
     });
 
@@ -349,7 +383,7 @@ export function useScoreLayout() {
       layoutSettings,
       slurPaths,
     };
-  }, [parsedNotes, project, state, layoutSettings, longToShortPartMap]);
+  }, [cachedParsedNotesRef.current, layoutSettings, longToShortPartMap, project, state?.preferences?.viewMode]);
 
   return layout;
 }

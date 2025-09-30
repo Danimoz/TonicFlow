@@ -22,8 +22,6 @@ export function useSidebarActions() {
     togglePlaying,
   } = useEditor();
 
-  const [showPrintDialog, setShowPrintDialog] = useState(false);
-
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       // Avoid interfering with form inputs or other focusable elements
@@ -60,14 +58,6 @@ export function useSidebarActions() {
       icon: Edit,
       onClick: () => setViewMode('write'),
       isActive: state?.preferences.viewMode === 'write',
-      group: 'view'
-    },
-    {
-      id: 'print-mode',
-      label: 'Print Mode',
-      onClick : () => setShowPrintDialog(true),
-      isActive: showPrintDialog,
-      icon: Printer,
       group: 'view'
     },
     {

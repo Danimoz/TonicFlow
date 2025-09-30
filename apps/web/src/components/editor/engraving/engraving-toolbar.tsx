@@ -2,8 +2,13 @@ import { useEditor } from "@/contexts/editor-context";
 import { addDynamicToNote } from "@/lib/parsers/text-to-json";
 import { useScoreLayout } from "@/hooks/useScoreLayout";
 import { Button } from "@repo/ui/components/button";
+import { Printer } from "lucide-react";
 
-export default function EngravingToolbar() {
+interface EngravingToolbarProps {
+  onPrint?: () => void;
+}
+
+export default function EngravingToolbar({ onPrint }: EngravingToolbarProps) {
   const { state, setSolfaText } = useEditor();
   const layout = useScoreLayout();
 
@@ -19,25 +24,22 @@ export default function EngravingToolbar() {
     const event = measure.events[noteIndex];
     if (!event || event.type !== 'note') return null;
 
-    // Find all note events in this measure to calculate cumulative beat position
-    const noteEvents = measure.events.filter(e => e.type === 'note');
-    const noteIndexInMeasure = noteEvents.findIndex(e => e === event);
+    // Find the index of the current event in the measure
+    const eventIndexInMeasure = measure.events.findIndex((e: any) => e === event);
 
-    // Calculate beat position by accumulating durations of previous notes
+    // Calculate beat position by accumulating durations of all previous events
     let cumulativeBeat = 1; // Start at beat 1
 
-    for (let i = 0; i < noteIndexInMeasure; i++) {
-      const previousNote = noteEvents[i];
-      if (previousNote && previousNote.type === 'note') {
-        cumulativeBeat += previousNote.duration;
+    for (let i = 0; i < eventIndexInMeasure; i++) {
+      const previousEvent = measure.events[i];
+      if (previousEvent && (previousEvent.type === 'note' || previousEvent.type === 'rest')) {
+        cumulativeBeat += previousEvent.duration;
       }
     }
 
-    // The beat should not be artificially capped - let it show the actual position
-    const beat = cumulativeBeat;
-
-    // Round to sixteenth note precision to handle 0.25 durations properly
-    const roundedBeat = Math.round(beat * 16) / 16;
+    // Round to the nearest sixteenth note (1/16 = 0.0625) to avoid floating point precision issues
+    // but preserve decimal values like 3.875
+    const roundedBeat = Math.round(cumulativeBeat * 16) / 16;
 
     return {
       ...event,
@@ -143,6 +145,19 @@ export default function EngravingToolbar() {
               </div>
             </div>
           )}
+          
+          {/* Print Button */}
+          <Button
+            onClick={onPrint}
+            variant="outline"
+            size="sm"
+            className="h-8 px-3 text-xs font-medium transition-all duration-200 hover:bg-gray-50 border border-gray-300 rounded-md flex items-center gap-2"
+            title="Print Score"
+            disabled={!onPrint}
+          >
+            <Printer size={14} />
+            Print
+          </Button>
         </div>
       </div>
     </div>

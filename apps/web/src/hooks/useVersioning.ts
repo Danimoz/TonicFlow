@@ -32,7 +32,7 @@ export function useVersioning(
       const sessionDuration = (new Date().getTime() - sessionStartTime.getTime()) / 1000;
       const hasChanges = hasSignificantChanges();
       if (hasChanges && sessionDuration > VERSION_THRESHOLDS.MIN_SESSION_DURATION) {
-        await createProjectVersion(projectId, solfaText, 'auto', true);
+        await createProjectVersion(projectId, solfaText, 'auto');
         setLastVersionContent(solfaText);
       }
     }

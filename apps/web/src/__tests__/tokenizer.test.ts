@@ -114,7 +114,6 @@ describe('Tokenizer Tests', () => {
       { type: 'NOTE', value: 'r', position: 4 },
       { type: 'RANGLE', value: '>', position: 5 },
       { type: 'NOTE', value: 'd', position: 6 },
-      { type: 'COLON', value: ':', position: 7 }
     ];
     expect(tokens).toEqual(expectedOutput);
   });

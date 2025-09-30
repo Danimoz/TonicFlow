@@ -98,7 +98,7 @@ export const NoteGroup: React.FC<NoteGroupProps> = ({ measure, systemIndex, meas
               )}
               
               {/* Note */}
-              <text x={event.x} y={event.y} className="notes">
+              <text x={event.x} y={event.y} className={`notes ${isSelected ? 'selected' : ''}`}>
                 {event.graceNotes && (
                   <tspan fontSize="12" baselineShift="super" className="grace-note">{event.graceNotes?.map((note: any) => note.noteName).join(', ')}</tspan>
                 )}
