@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { EditorContextValue } from "./types";
 import { useEditorState } from "@/hooks/useEditorState";
 import { useProjectLoader } from "@/hooks/useProjectLoader";
@@ -14,6 +15,8 @@ interface EditorProviderProps {
 }
 
 export function EditorProvider({ projectId, children }: EditorProviderProps) {
+  const router = useRouter();
+  
   // Initialize all hooks
   const {
     state,
@@ -69,25 +72,71 @@ export function EditorProvider({ projectId, children }: EditorProviderProps) {
           dispatch({ type: 'SET_EDITOR_STATE', payload: createInitialEditorState(project) });
           setLastVersionContent(project.currentVersion?.notationContent || '');
         } else {
+          // Smart conflict resolution: Compare timestamps to determine which content is newer
+          const backendVersion = project.currentVersion;
+          const indexedVersion = indexedProject.currentVersion;
+          
+          let latestContent: string | undefined;
+          let contentSource: 'backend' | 'indexed' = 'indexed';
+          
+          if (backendVersion && indexedVersion) {
+            const backendTime = new Date(backendVersion.updatedAt).getTime();
+            const indexedTime = new Date(indexedVersion.updatedAt).getTime();
+            
+            if (backendTime > indexedTime) {
+              // Backend has newer content
+              latestContent = backendVersion.notationContent;
+              contentSource = 'backend';
+              console.log('Using backend content (newer):', { backendTime, indexedTime });
+            } else {
+              // IndexedDB has newer or equal content
+              latestContent = indexedVersion.notationContent;
+              contentSource = 'indexed';
+              console.log('Using IndexedDB content (newer or equal):', { backendTime, indexedTime });
+            }
+          } else {
+            // Fallback to available content
+            latestContent = indexedVersion?.notationContent || backendVersion?.notationContent || undefined;
+            console.log('Using fallback content:', { hasIndexed: !!indexedVersion, hasBackend: !!backendVersion });
+          }
+          
           dispatch({
             type: 'SET_EDITOR_STATE', payload: {
               projectId: indexedProject.id,
               preferences: indexedProject.preferences!,
-              solfaText: project.currentVersion?.notationContent || undefined,
+              solfaText: latestContent,
               isPlaying: false,
             }
           });
-          setLastVersionContent(project.currentVersion?.notationContent || '');
+          setLastVersionContent(latestContent || '');
+          
+          // If backend content was newer, update IndexedDB to sync local cache
+          if (contentSource === 'backend' && backendVersion) {
+            console.log('Updating IndexedDB with newer backend content');
+            // Update the local IndexedDB with the newer backend content
+            import('@/lib/dexie').then(({ saveSolfaTextToIndexedDB }) => {
+              saveSolfaTextToIndexedDB(projectId, backendVersion.notationContent).catch(error => {
+                console.error('Failed to update IndexedDB with backend content:', error);
+              });
+            });
+          }
         }
       } catch (error) {
         console.error("Failed to load project:", error);
+        // If project not found, redirect to 404 page
+        if ((error as any).isNotFound || error instanceof Error && error.message === "Project not found") {
+          router.push('/not-found');
+          return;
+        }
+        // For other errors, set error state but don't redirect
+        setError("Failed to load project. Please try again.");
       }
 
       setIsLoading(false);
     };
 
     initialize();
-  }, [projectId, dispatch, createInitialEditorState, loadProject, loadProjectFromSession, setError, setIsLoading, setLastVersionContent, setSessionStartTime]);
+  }, [projectId, dispatch, createInitialEditorState, loadProject, loadProjectFromSession, setError, setIsLoading, setLastVersionContent, setSessionStartTime, router]);
 
   const contextValue: EditorContextValue = {
     state,

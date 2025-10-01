@@ -10,7 +10,7 @@ interface EngravingToolbarProps {
 
 export default function EngravingToolbar({ onPrint }: EngravingToolbarProps) {
   const { state, setSolfaText } = useEditor();
-  const layout = useScoreLayout();
+  const { layout } = useScoreLayout();
 
   const getSelectedNote = () => {
     if (!state?.selection || !layout) return null;

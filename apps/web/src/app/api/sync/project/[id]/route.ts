@@ -15,7 +15,7 @@ export async function POST(request: Request, { params }: { params: { id: string 
     });
 
     if (!res) return Response.json({ message: 'Failed to sync project', error: true }, { status: 500 });
-    return Response.json({ message: "Project synced successfully" });
+    return Response.json({ message: "Project synced successfully" }, { status: 200 });
   } catch (error) {
     console.error("Error syncing project:", error);
     return Response.json({ message: "Error syncing project", error: true }, { status: 500 });

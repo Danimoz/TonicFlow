@@ -121,9 +121,7 @@ export const usePrint = () => {
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: 'Music Score',
-    onBeforePrint: () => {
-      console.log('Print ref current:', printRef.current);
-      console.log('Print ref children:', printRef.current?.children);
+    onBeforePrint: () => { 
       return Promise.resolve();
     },
     onPrintError: (errorLocation, error) => {

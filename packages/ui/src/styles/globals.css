@@ -3,6 +3,31 @@
 @source "../../../../apps/**/*{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
+/* Font preloading for music notation */
+@font-face {
+  font-family: 'MusGlyphs';
+  src: url('/fonts/MusGlyphs.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'New Century Schoolbook';
+  src: url('/fonts/NewCenturySchoolbook.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Calendula';
+  src: url('/fonts/Calendula.otf') format('opentype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 @theme {
   --color-background: oklch(0.9791 0 0);
   --color-foreground: oklch(0.3211 0 0);
@@ -80,4 +105,4 @@ body {
 
 grammarly-extension {
   display: none;
-} 
+}

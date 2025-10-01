@@ -21,12 +21,6 @@ interface SyncQueueItem {
   retryCount: number;
 }
 
-interface ConflictResolutionResult {
-  useLocal: boolean;
-  useBackend: boolean;
-  merged?: string;
-}
-
 export function useAutoSave(
   projectId: string | undefined,
   solfaText: string | undefined,
@@ -155,6 +149,7 @@ export function useAutoSave(
     if (!response.ok) {
       throw new Error(`Sync failed: ${response.status} ${response.statusText}`);
     }
+    console.log(JSON.stringify(await response.json(), null, 2));
   };
 
   // Manual sync trigger for user-initiated sync

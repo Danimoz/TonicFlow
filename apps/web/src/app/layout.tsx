@@ -3,6 +3,7 @@ import "@repo/ui/globals.css"
 import ConditionalNavbar from "@/components/conditional-navbar";
 import { AuthProvider } from "@/contexts/auth-context";
 import { getInitialAuthState } from "@/lib/auth";
+import GlobalFontLoader from "@/components/GlobalFontLoader";
 
 export const metadata: Metadata = {
   title: "Tonic Flow - Modern Tonic Solfa Notation Software",
@@ -18,7 +19,8 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <body className='font-sans antialiased'>
+      <body className='font-sans antialiased' suppressHydrationWarning={true}>
+        <GlobalFontLoader />
         <AuthProvider initialAuthState={initialAuthState}>
           <ConditionalNavbar />
           {children}

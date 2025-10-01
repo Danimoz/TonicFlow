@@ -27,7 +27,11 @@ export function useProjectLoader() {
   const loadProject = useCallback(async (projectId: string) => {
     try {
       const project = await getProjectById(projectId);
-      if (!project) throw new Error("Project not found");
+      if (!project) {
+        const notFoundError = new Error("Project not found");
+        (notFoundError as any).isNotFound = true;
+        throw notFoundError;
+      }
       const indexedProject = await getProjectFromIndexedDB(projectId);
       if (!indexedProject) {
         await addProjectToIndexedDb(project);
@@ -35,7 +39,11 @@ export function useProjectLoader() {
       setProject(project);
       return { project, indexedProject };
     } catch (error) {
-      handleError(error, "load project");
+      if ((error as any).isNotFound) {
+        setError("Project not found");
+      } else {
+        handleError(error, "load project");
+      }
       throw error;
     }
   }, [handleError]);

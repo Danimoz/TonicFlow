@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useEditor } from '@/contexts/editor-context';
 import { useLayoutSettings } from '@/hooks/useLayoutSettings';
 import { parseNotationToJSON } from '@/lib/parsers/text-to-json';
@@ -66,6 +66,54 @@ export function useScoreLayout() {
   const cachedParsedNotesRef = useRef<any>(null);
   const lastCachedSolfaTextRef = useRef<string>('');
   const lastCachedTimeSignatureRef = useRef<any>(null);
+  
+  // Loading state for async parsing
+  const [isParsingLoading, setIsParsingLoading] = useState(false);
+  const parseTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounced async parsing function
+  const debouncedParseNotation = useCallback(async (solfaText: string, timeSignature: any) => {
+    // Clear any existing timeout
+    if (parseTimeoutRef.current) {
+      clearTimeout(parseTimeoutRef.current);
+    }
+    
+    // Set loading state immediately
+    setIsParsingLoading(true);
+    
+    // Debounce the parsing to avoid excessive re-parsing
+    parseTimeoutRef.current = setTimeout(async () => {
+      try {
+        // Use requestIdleCallback for better performance, fallback to setTimeout
+        const parseInIdle = () => {
+          return new Promise<any>((resolve) => {
+            if ('requestIdleCallback' in window) {
+              requestIdleCallback(() => {
+                const result = parseNotationToJSON(solfaText, timeSignature);
+                resolve(result);
+              }, { timeout: 1000 });
+            } else {
+              setTimeout(() => {
+                const result = parseNotationToJSON(solfaText, timeSignature);
+                resolve(result);
+              }, 0);
+            }
+          });
+        };
+        
+        const result = await parseInIdle();
+        
+        cachedParsedNotesRef.current = result;
+        lastCachedSolfaTextRef.current = solfaText;
+        lastCachedTimeSignatureRef.current = timeSignature;
+      } catch (error) {
+        console.error('Error parsing notation:', error);
+        // Keep the previous cached result on error
+      } finally {
+        setIsParsingLoading(false);
+      }
+    }, 150); // 150ms debounce delay
+  }, []);
 
   // Update cache when switching to engrave mode
   useEffect(() => {
@@ -77,12 +125,10 @@ export function useScoreLayout() {
         lastCachedSolfaTextRef.current !== state.solfaText ||
         JSON.stringify(lastCachedTimeSignatureRef.current) !== JSON.stringify(currentTimeSignature)
       ) {
-        cachedParsedNotesRef.current = parseNotationToJSON(state.solfaText, currentTimeSignature);
-        lastCachedSolfaTextRef.current = state.solfaText;
-        lastCachedTimeSignatureRef.current = currentTimeSignature;
+        debouncedParseNotation(state.solfaText, currentTimeSignature);
       }
     }
-  }, [state?.preferences?.viewMode, state?.solfaText, state?.preferences.timeSignature]);
+  }, [state?.preferences?.viewMode, state?.solfaText, state?.preferences.timeSignature, debouncedParseNotation]);
 
   // Initialize cache on first load if we're already in engrave mode
   useEffect(() => {
@@ -92,11 +138,18 @@ export function useScoreLayout() {
       !cachedParsedNotesRef.current
     ) {
       const currentTimeSignature = state?.preferences.timeSignature ?? { numerator: 4, denominator: 4 };
-      cachedParsedNotesRef.current = parseNotationToJSON(state.solfaText, currentTimeSignature);
-      lastCachedSolfaTextRef.current = state.solfaText;
-      lastCachedTimeSignatureRef.current = currentTimeSignature;
+      debouncedParseNotation(state.solfaText, currentTimeSignature);
     }
-  }, [state?.preferences?.viewMode, state?.solfaText, state?.preferences.timeSignature]);
+  }, [state?.preferences?.viewMode, state?.solfaText, state?.preferences.timeSignature, debouncedParseNotation]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (parseTimeoutRef.current) {
+        clearTimeout(parseTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const longToShortPartMap = useMemo(() => {
     return Object.entries(partMap).reduce((acc, [, value]) => {
@@ -385,5 +438,8 @@ export function useScoreLayout() {
     };
   }, [cachedParsedNotesRef.current, layoutSettings, longToShortPartMap, project, state?.preferences?.viewMode]);
 
-  return layout;
+  return {
+    layout,
+    isParsingLoading
+  };
 }

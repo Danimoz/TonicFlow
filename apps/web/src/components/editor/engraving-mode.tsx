@@ -15,12 +15,12 @@ import { usePrint } from "@/hooks/usePrint";
 
 export default function EngravingMode() {
   const { state } = useEditor();
-  const layout = useScoreLayout();
+  const { layout, isParsingLoading } = useScoreLayout();
   const { setSelection } = useEditor();
   const { printRef, handlePrint } = usePrint();
 
   if (!state?.solfaText) return <ProjectLoading />;
-  if (!layout) return <ProjectLoading />;
+  if (isParsingLoading || !layout) return <ProjectLoading />;
 
   const { svgWidth, svgHeight, systems, slurPaths } = layout;
 

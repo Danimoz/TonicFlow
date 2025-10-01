@@ -4,6 +4,7 @@ import { partMap } from "../parserUtils";
 import { tokenize } from "./tokenizer";
 import { parse } from "./parser";
 
+
 const partKeys = Object.keys(partMap).sort((a, b) => b.length - a.length) // Sort by length descending to match longer keys first
 const partRegex = new RegExp(`^(${partKeys.join('|')})\\.(.+)$`);
 
@@ -72,12 +73,10 @@ export function parseNotationToJSON(notation: string, timeSignature: TimeSignatu
   return { measures, errors };
 }
 
-export function addDynamicToNote(solfaText: string, selection: ScoreElementReference, dynamic: string, timeSignature?: TimeSignature): string {
-  const defaultTimeSignature: TimeSignature = { numerator: 4, denominator: 4 };
-  const ts = timeSignature || defaultTimeSignature;
-
+// Keep the original implementation as a fallback
+export function addDynamicToNote(solfaText: string, selection: ScoreElementReference, dynamic: string, timeSignature: TimeSignature): string {
   // Parse the entire notation to get measure structure
-  const parsed = parseNotationToJSON(solfaText, ts);
+  const parsed = parseNotationToJSON(solfaText, timeSignature);
   if (!parsed) return solfaText;
 
   // Find the target measure by index from the parsed measures
