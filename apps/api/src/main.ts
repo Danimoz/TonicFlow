@@ -5,7 +5,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
-    logger: new ConsoleLogger({ json: true })
+    logger: new ConsoleLogger({ json: true, colors: true, timestamp: true }),
   });
 
   const config = new DocumentBuilder()

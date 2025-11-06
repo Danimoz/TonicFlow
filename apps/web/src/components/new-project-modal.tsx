@@ -15,6 +15,8 @@ import { createProject } from "@/app/(dashboard)/actions"
 import { FormEvent, useState } from "react"
 import { useRouter } from "next/navigation"
 import { addProjectToIndexedDb } from "@/lib/dexie"
+import { Import } from "lucide-react"
+import ImportFromXMLOrMidi from "./new-project-import"
 
 interface NewProjectModalProps {
   isOpen: boolean
@@ -81,13 +83,21 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-lg">
+      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Project</DialogTitle>
           <DialogDescription>
             Start a new music notation project
           </DialogDescription>
         </DialogHeader>
+
+        <ImportFromXMLOrMidi />
+
+        <div className="flex items-center gap-2 text-xs uppercase text-muted-foreground">
+          <div className="h-px flex-1 bg-border" aria-hidden="true" />
+          <span>Or create from scratch</span>
+          <div className="h-px flex-1 bg-border" aria-hidden="true" />
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {generalError && (

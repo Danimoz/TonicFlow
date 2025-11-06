@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useEditor } from '@/contexts/editor-context';
 import { useLayoutSettings } from '@/hooks/useLayoutSettings';
-import { parseNotationToJSON } from '@/lib/parsers/text-to-json';
-import { partMap } from '@/lib/parsers/parserUtils';
-import { Measure, MusicalEvent, Note } from '@/lib/parsers/interfaces';
+import { parseNotationToJSON } from '@repo/parsers/text-to-json';
+import { partMap } from '@repo/parsers/utils';
+import { Measure, MusicalEvent } from '@repo/parsers/interfaces';
+
 
 const NOTE_WIDTH = 20;
 const REST_WIDTH = 20;

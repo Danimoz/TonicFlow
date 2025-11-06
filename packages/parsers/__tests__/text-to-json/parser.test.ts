@@ -1,7 +1,7 @@
-import { getStartingMeasureNumber, parseNotationToJSON } from "@/lib/parsers/text-to-json";
-import { parse } from "@/lib/parsers/text-to-json/parser";
-import { tokenize } from "@/lib/parsers/text-to-json/tokenizer";
-import { Note } from "@/lib/parsers/interfaces";
+import { parseNotationToJSON } from '../../src/text-to-json/index.js';
+import { parse } from '../../src/text-to-json/parser.js';
+import { tokenize } from '../../src/text-to-json/tokenizer.js';
+import { Note } from '../../src/interfaces.js';
 
 describe('Parser Tests', () => {
   it('should parse a sequence of tokens into musical events', () => {

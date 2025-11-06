@@ -13,7 +13,8 @@
       "dependsOn": ["^build"],
       "outputs": [
         ".next/**",
-        "!.next/cache/**"
+        "!.next/cache/**",
+        "dist/**"
       ]
     },
     "db:generate": {

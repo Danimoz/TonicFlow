@@ -1,4 +1,4 @@
-import { tokenize } from '@/lib/parsers/text-to-json/tokenizer';
+import { tokenize } from "../../src/text-to-json/tokenizer.js";
 
 describe('Tokenizer Tests', () => {
   it('should handle edge cases', () => {
