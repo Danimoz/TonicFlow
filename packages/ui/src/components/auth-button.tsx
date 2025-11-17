@@ -1,7 +1,7 @@
 import * as React from "react"
 import { Button, buttonVariants } from "./button"
 import { LoadingSpinner } from "./loading-spinner"
-import { cn } from "@/lib/utils"
+import { cn } from "@repo/ui/lib/utils"
 import { type VariantProps } from "class-variance-authority"
 
 interface AuthButtonProps
