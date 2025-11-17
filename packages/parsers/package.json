@@ -3,20 +3,28 @@
   "type": "module",
   "scripts": {
     "dev": "tsc --watch",
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc",
     "test": "jest"
   },
   "exports": {
-    "./text-to-json": "./dist/text-to-json/index.js",
-    "./interfaces": "./dist/interfaces.js",
-    "./utils": "./dist/utils.js"
+    "./text-to-json": "./dist/src/text-to-json/index.js",
+    "./xml-to-solfa": "./dist/src/xml-to-solfa/index.js",
+    "./interfaces": "./dist/src/interfaces.js",
+    "./utils": "./dist/src/utils.js",
+    "./types": "./dist/src/types.js"
   },
   "devDependencies": {
+    "@jest/globals": "^30.2.0",
     "@repo/jest-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@types/jest": "^29.5.14",
+    "@types/node": "^24.10.1",
     "jest": "^30.2.0",
     "ts-jest": "^29.4.0",
     "typescript": "^5.9.3"
+  },
+  "dependencies": {
+    "fast-xml-parser": "^5.3.1",
+    "jszip": "^3.10.1"
   }
 }

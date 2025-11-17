@@ -3,6 +3,11 @@ export interface TimeSignature {
   denominator: number;
 }
 
+export interface KeySignature {
+  key: string;
+  mode: string
+}
+
 export interface ScoreElementReference {
   systemIndex: number;
   measureIndex: number;
