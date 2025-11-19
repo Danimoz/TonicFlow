@@ -1,23 +1,30 @@
-import { AttributeSnapshot, ProgressReport, XMLNote } from "../types.js";
-import { 
-  extractXMLTempoInfo, 
-  partMap, 
-  parseXMLMeasureAttributes, 
-  updateAtrributeSnapshot, 
-  toArray, 
-  parseXMLNotes, 
-  hasChanged, 
-  getText, 
+import { AttributeSnapshot, ProgressReport, TempoInfo, XMLNote } from "../types.js";
+import {
+  partMap,
+  parseXMLMeasureAttributes,
+  updateAttributeSnapshot,
+  parseXMLNotes,
+  hasChanged,
+  getText,
   getTextArray,
-  simplifyNode
+  simplifyNode,
+  detectClosedScore
 } from "../utils.js";
 
-const vocalKeys =  ["S", "A", "T", "B", "MS", "Bar", "S I", "S II", "S III", "A I", "A II", "A III", "T I", "T II", "T III", "B I", "B II", "B III"];
+const vocalKeys = ["S", "A", "T", "B", "MS", "Bar", "S I", "S II", "S III", "A I", "A II", "A III", "T I", "T II", "T III", "B I", "B II", "B III"];
 const longNamesSet = new Set(
   vocalKeys.map(k => partMap[k]?.long.toLowerCase())
 )
+console.log('Long Names Set:', longNamesSet);
+
 function getKeyByLongName(name: string): string | undefined {
   return Object.entries(partMap).find(([_, v]) => v.long.toLowerCase() === name.toLowerCase())?.[0];
+}
+
+interface PartConfig {
+  partIndex: number;
+  targetVoice: string;
+  outputName: string;
 }
 
 export function xmlJSONToSolfaParser(xmlJson: Array<any>, onProgress?: (report: ProgressReport) => void) {
@@ -44,94 +51,135 @@ export function xmlJSONToSolfaParser(xmlJson: Array<any>, onProgress?: (report: 
 
   const scoreParts = partListArray
     ?.filter(elem => elem['score-part'])
-    .map(elem => elem['score-part']?.[0])
+    .map(elem => simplifyNode(elem['score-part']));
 
   const partsData = scorePartwiseData.filter(elem => elem['part']);
-  
+
   if (!scoreParts || !partsData) {
     onProgress?.({ completedPercentage: 0, error: 'Missing parts information', message: 'Parsing failed' });
     throw new Error('Missing parts information');
   }
 
-  const partsToUseSet = new Set<number>();
-  const partsToUseNames: string[] = [];
+  const processingConfigs: PartConfig[] = [];
 
-  if (scoreParts) {
-    scoreParts.forEach((part, idx) => {
-      const partName = getText(part?.['part-name'])
-      if (partName && longNamesSet.has(partName.toLowerCase())){
-        partsToUseSet.add(idx);
-        partsToUseNames.push(getKeyByLongName(partName) || '')
+  scoreParts.forEach((part, idx) => {
+    const partName = part?.['part-name'];
+    if (partName) {
+      if (longNamesSet.has(partName.toLowerCase())) {
+        const key = getKeyByLongName(partName);
+        processingConfigs.push({ partIndex: idx, outputName: key || partName, targetVoice: "1" });
+      } else {
+        const detectedParts = detectClosedScore(partName);
+        if (Array.isArray(detectedParts)) {
+          const key1 = detectedParts[0]
+          const key2 = detectedParts[1]
+          processingConfigs.push({ partIndex: idx, outputName: key1 || partName, targetVoice: "1" });
+          processingConfigs.push({ partIndex: idx, outputName: key2 || partName, targetVoice: "2" });
+        }
       }
-    })
-  }
+    }
+  })
 
-  const filteredPartsData = partsData?.filter((_, idx) => partsToUseSet.has(idx));
-  
+  let initialTempoInfo: TempoInfo | null = null
   const snapshot: AttributeSnapshot = {}
   const seenInitialAttributes = { value: false }
-  
+
   let solfaStr = '';
 
-  for (let p = 0; p < filteredPartsData.length; p++) {
-    const part: any[] = filteredPartsData[p]['part'];
+  for (let p = 0; p < processingConfigs.length; p++) {
+    const config = processingConfigs[p];
+    if (!config) continue;
 
-    const solfaForPart = partsToUseNames[p] + '. ';
-    let slurState : { [partName: string] : boolean} = {};
-    let tieState : { [partName: string] : boolean} = {};
-    let solfaForPartAccum = solfaForPart;
+    const rawPartWrapper = partsData[config.partIndex];
+    const partMeasures = rawPartWrapper['part'];
 
-    if (slurState[partsToUseNames[p]!] === undefined) {
-      slurState[partsToUseNames[p]!] = false;
+    let solfaForPartAccum = config.outputName + '. ';
+
+    let slurState: { [partName: string]: boolean } = {};
+    let tieState: { [partName: string]: boolean } = {};
+
+    if (slurState[config.outputName] === undefined) {
+      slurState[config.outputName] = false;
     }
-    if (tieState[partsToUseNames[p]!] === undefined) {
-      tieState[partsToUseNames[p]!] = false;
+    if (tieState[config.outputName] === undefined) {
+      tieState[config.outputName] = false;
     }
-    
-    for (let m = 0; m < part.length; m++) {
-      const measureEvents = part[m]['measure'];
+
+    for (let m = 0; m < partMeasures.length; m++) {
+      const measureEvents = partMeasures[m]?.['measure'];
+
       const cleanNotes: XMLNote[] = [];
       let currentDynamic: any = null;
+      let currentDirectionText: any = null;
+      let tempoInfo: TempoInfo | null = null
       let timeChanged = false;
       let keyChanged = false;
 
       // --- STEP 1: Pre-process the Measure Events ---
-      if (Array.isArray(measureEvents)){
+      if (Array.isArray(measureEvents)) {
         for (const event of measureEvents) {
-          if (event.attributes){
+          if (event.attributes) {
             const attributes = simplifyNode(event.attributes);
             const parsedAttrs = parseXMLMeasureAttributes(attributes);
             if (parsedAttrs.time) timeChanged = hasChanged(parsedAttrs.time, snapshot.currentTime, ['numerator', 'denominator']);
             if (parsedAttrs.key) keyChanged = hasChanged(parsedAttrs.key, snapshot.currentKey, ['key', 'mode']);
-            updateAtrributeSnapshot(snapshot, parsedAttrs, seenInitialAttributes);
+            updateAttributeSnapshot(snapshot, parsedAttrs, seenInitialAttributes);
           }
 
-          if (event.direction){
+          if (event.direction) {
             const dir = simplifyNode(event.direction);
+
             if (dir['direction-type']?.dynamics) {
               currentDynamic = Object.keys(dir['direction-type'].dynamics)[0];
             }
+            // (e.g. rit..)
+            if (dir['direction-type']?.words) {
+              currentDirectionText = dir['direction-type'].words;
+            }
+            if (dir['direction-type']?.metronome) {
+              const metronome = dir['direction-type'].metronome;
+              // ensure tempoInfo is initialized before assigning fields
+              tempoInfo = {
+                beatUnit: metronome['beat-unit'],
+                beatUnitDot: metronome['beat-unit-dot'] !== undefined ? true : false,
+                perMinute: Number(metronome['per-minute'])
+              };
+              if (!initialTempoInfo) initialTempoInfo = { ...tempoInfo };
+            }
           }
 
-          if (event.note){
+          if (event.note) {
             const noteData = simplifyNode(event.note);
-            noteData.dynamic = currentDynamic;
-            cleanNotes.push(noteData);
+            // if ((m > 13 && m <= 15) && config.outputName === 'T') console.log('Note Data (Measure > 13):', noteData);
+            const noteVoice = noteData.voice ? String(noteData.voice) : "1";
+
+            if (noteVoice === config.targetVoice) {
+              if (currentDynamic) {
+                noteData.dynamic = currentDynamic;
+                currentDynamic = null;
+              }
+              if (currentDirectionText) {
+                noteData.directionText = currentDirectionText;
+                currentDirectionText = null;
+              }
+              if (tempoInfo) {
+                noteData.tempo = tempoInfo;
+                tempoInfo = null;
+              }
+              cleanNotes.push(noteData);
+            }
           }
-
-          // Handle Polyphony Later sha
-
         }
       }
 
-      let currentSlurState = slurState[partsToUseNames[p]!];
-      let currentTieState = tieState[partsToUseNames[p]!];
+      let currentSlurState = slurState[config.outputName];
+      let currentTieState = tieState[config.outputName];
       const { solfaString, newSlurState, newTieState } = parseXMLNotes(
         cleanNotes,
         snapshot.currentKey!,
         snapshot.currentTime!,
         snapshot.currentDivision!,
-        partsToUseNames[p]!,
+        config.outputName,
         currentSlurState!,
         currentTieState!,
         timeChanged,
@@ -140,15 +188,21 @@ export function xmlJSONToSolfaParser(xmlJson: Array<any>, onProgress?: (report: 
       );
 
       solfaForPartAccum += solfaString + ' | ';
-      slurState[partsToUseNames[p]!] = newSlurState;
-      tieState[partsToUseNames[p]!] = newTieState;
+      slurState[config.outputName] = newSlurState;
+      tieState[config.outputName] = newTieState;
     }
 
-    solfaStr += solfaForPartAccum;
-    if (p > 0) {
-      solfaStr += '\n';
-    }
+    solfaStr += solfaForPartAccum + '\n';
   }
 
-  return solfaStr;
+  const finalMetadata = {
+    title: workTitle,
+    composers: creators,
+    rights: rights || '',
+    initialTempo: initialTempoInfo,
+    timeSignature: snapshot.initialTime,
+    keySignature: snapshot.initialKey
+  };
+
+  return { solfaString: solfaStr.trim(), metadata: finalMetadata };
 }

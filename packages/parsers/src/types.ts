@@ -14,7 +14,6 @@ export type DirectionType = {
 };
 
 export type TempoInfo = {
-  text?: string;
   beatUnit?: string;
   beatUnitDot?: boolean
   perMinute?: number;
@@ -52,10 +51,7 @@ export type XMLNote = {
   staff?: number
   tie?: string 
   beam?: string | string[]
-  lyric?: {
-    syllabic: string;
-    text: string
-  }
+  lyric?: XMLNoteLyric | XMLNoteLyric[]
   stem?: 'up' | 'down'
   "time-modification"?: {
     "actual-notes": number;
@@ -64,6 +60,14 @@ export type XMLNote = {
   }
   notations?: XMLNoteNotations | XMLNoteNotations[]
   dynamic?: string
+  directionText?: string
+  tempo?: TempoInfo
+  chord?: object | string
+}
+
+export type XMLNoteLyric = {
+  syllabic: string;
+  text: string;
 }
 
 export type XMLNoteNotations = {

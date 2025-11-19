@@ -15,7 +15,6 @@ import { createProject } from "@/app/(dashboard)/actions"
 import { FormEvent, useState } from "react"
 import { useRouter } from "next/navigation"
 import { addProjectToIndexedDb } from "@/lib/dexie"
-import { Import } from "lucide-react"
 import ImportFromXMLOrMidi from "./new-project-import"
 
 interface NewProjectModalProps {
@@ -40,6 +39,55 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
   const [generalError, setGeneralError] = useState("")
   const { push } = useRouter()
 
+  const handleImportComplete = async (result: any) => {
+    setIsLoading(true)
+    setErrors({})
+    setGeneralError("")
+
+    try {
+      // Create FormData from imported metadata
+      const formData = new FormData()
+      formData.append("title", result.metadata.title || "Untitled")
+
+      if (result.metadata.composers && result.metadata.composers.length > 0) {
+        formData.append("composer", result.metadata.composers.join(", "))
+      }
+
+      if (result.metadata.keySignature) {
+        const keyString = `${result.metadata.keySignature.key}${result.metadata.keySignature.mode === 'minor' ? 'm': ''}`
+        formData.append("keySignature", keyString)
+      }
+
+      if (result.metadata.timeSignature) {
+        const timeString = `${result.metadata.timeSignature.numerator}/${result.metadata.timeSignature.denominator}`
+        formData.append("timeSignature", timeString)
+      }
+
+      if (result.metadata.initialTempo?.perMinute) {
+        formData.append("tempo", result.metadata.initialTempo.perMinute.toString())
+      }
+
+      // Add the solfa notation content
+      formData.append("initialNotationContent", result.solfaString)
+
+      const createResult = await createProject(formData)
+      if (createResult.success && createResult.project) {
+        sessionStorage.setItem("newProject", JSON.stringify(createResult.project))
+        await addProjectToIndexedDb(createResult.project)
+        push(`/project/${createResult.project.id}`)
+        handleClose()
+      } else {
+        if (createResult.fieldErrors) setErrors(createResult.fieldErrors)
+        if (createResult.error) setGeneralError(createResult.error)
+      }
+    } catch (error) {
+      console.error("Create project error:", error)
+      setGeneralError("An unexpected error occurred. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setIsLoading(true)
@@ -56,7 +104,7 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
         push(`/project/${result.project.id}`)
         handleClose()
       } else {
-        if (result.fieldErrors)  setErrors(result.fieldErrors)
+        if (result.fieldErrors) setErrors(result.fieldErrors)
         if (result.error) setGeneralError(result.error)
       }
     } catch (error) {
@@ -91,7 +139,7 @@ export function NewProjectModal({ isOpen, onClose }: NewProjectModalProps) {
           </DialogDescription>
         </DialogHeader>
 
-        <ImportFromXMLOrMidi />
+        <ImportFromXMLOrMidi onImportComplete={handleImportComplete} />
 
         <div className="flex items-center gap-2 text-xs uppercase text-muted-foreground">
           <div className="h-px flex-1 bg-border" aria-hidden="true" />

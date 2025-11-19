@@ -121,10 +121,21 @@ export function tokenize(partContent: string): Token[] {
     }
 
     if (char && char.toUpperCase() === 'T') {
-      const match = remaining.match(/^T\d+/i);
+      const match = remaining.match(/^T(2|4|8|16)(\.?)=(\d+)/i);
+
       if (match) {
         tokens.push({ type: 'TEMPO_CHANGE', value: match[0], position: cursor });
         cursor += match[0].length;
+        continue;
+      }
+    }
+
+    if (char && char === '"') {
+      const closingQuoteIndex = remaining.indexOf('"', 1);
+      if (closingQuoteIndex !== -1) {
+        const wordContent = remaining.substring(1, closingQuoteIndex);
+        tokens.push({ type: 'DIRECTION_TEXT', value: wordContent, position: cursor });
+        cursor += closingQuoteIndex + 1;
         continue;
       }
     }

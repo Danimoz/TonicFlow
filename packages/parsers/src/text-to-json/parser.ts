@@ -49,6 +49,11 @@ export function parse(tokens: Token[], startingMeasure: number = 1, partName: st
         break;
       }
 
+      case 'DIRECTION_TEXT': {
+        pendingAttributes.directionText = token.value;
+        break;
+      }
+
       case 'GRACE_NOTE': {
         const graceNotes: Note[] = [];
         if (tokens[i + 1]?.type === 'LANGLE') {
@@ -437,7 +442,8 @@ function parseNote(tokens: Token[], index: number, currentMeasure: number, pendi
     ...(pendingAttributes.articulation ? { articulation: pendingAttributes.articulation } : {}),
     ...(lyrics ? { lyric: lyrics } : {}),
     ...(pendingAttributes.graceNotes ? { graceNotes: pendingAttributes.graceNotes } : {}),
-    ...(pendingAttributes.noteChange ? { noteChange: pendingAttributes.noteChange } : {})
+    ...(pendingAttributes.noteChange ? { noteChange: pendingAttributes.noteChange } : {}),
+    ...(pendingAttributes.directionText ? { directionText: pendingAttributes.directionText } : {})
   };
 
   return { note: newNote, newIndex: currentIndex };

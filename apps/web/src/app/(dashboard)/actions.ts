@@ -28,6 +28,7 @@ export async function createProject(formData: FormData): Promise<CreateProjectRe
   const timeSignature = formData.get("timeSignature") as string
   const yearOfComposition = formData.get("yearOfComposition") as string
   const tempo = formData.get("tempo") as string
+  const initialNotationContent = formData.get("initialNotationContent") as string
 
   // Server-side validation
   const fieldErrors: Record<string, string> = {}
@@ -46,6 +47,7 @@ export async function createProject(formData: FormData): Promise<CreateProjectRe
         timeSignature: timeSignature?.trim() || undefined,
         yearOfComposition: yearOfComposition?.trim() || undefined,
         tempo: tempo?.trim() || undefined,
+        initialNotationContent: initialNotationContent?.trim() || undefined,
       })
     })
     return { success: true, project }

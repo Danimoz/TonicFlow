@@ -1,3 +1,5 @@
+import { TempoInfo } from "./types.js";
+
 export interface TimeSignature {
   numerator: number;
   denominator: number;
@@ -57,6 +59,7 @@ type TokenType =
   | 'LBRACE' // {
   | 'RBRACE' // }
   | 'WORD' // for lyrics, dynamics
+  | 'DIRECTION_TEXT' // "Allegro"
   | 'SLUR'
   | 'GRACE_NOTE'
   | 'FERMATA' // ^
@@ -108,6 +111,7 @@ export interface Note {
   tupletNumber?: number;
   graceNotes?: Note[];
   noteChange?: string
+  directionText?: string;
 }
 
 interface NoteExtension {
@@ -156,4 +160,16 @@ export interface Measure {
   barlineType?: 'single' | 'double' | 'repeat_start' | 'repeat_end' | 'final';
   segno?: boolean;
   tempoChange?: string;
+}
+
+export interface XMLToSolfaResult {
+  solfaString: string;
+  metadata: {
+    title: string;
+    composers: string[];
+    rights: string;
+    initialTempo: TempoInfo | null;
+    timeSignature: TimeSignature | undefined;
+    keySignature: KeySignature | undefined;
+  };
 }

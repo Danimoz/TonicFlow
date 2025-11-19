@@ -8,8 +8,13 @@ import { toast } from "sonner";
 import { FileMusic, Upload } from "lucide-react";
 import { Progress } from "@repo/ui/components/progress";
 import { ProgressReport } from "@repo/parsers/types";
+import { XMLToSolfaResult } from "@repo/parsers/interfaces";
 
-export default function ImportFromXMLOrMidi() {
+interface ImportFromXMLOrMidiProps {
+  onImportComplete?: (result: XMLToSolfaResult) => void;
+}
+
+export default function ImportFromXMLOrMidi({ onImportComplete }: ImportFromXMLOrMidiProps) {
   const musicXmlInputRef = useRef<HTMLInputElement>(null);
   const midiInputRef = useRef<HTMLInputElement>(null);
   const [dragOver, setDragOver] = useState<'musicxml' | 'midi' | null>(null);
@@ -31,9 +36,20 @@ export default function ImportFromXMLOrMidi() {
     }
 
     if (type === 'musicxml') {
-      await xmlToSolfa(file, (report) => {
+      const result = await xmlToSolfa(file, (report) => {
         setProgressReport(report);
       });
+
+      if (result) {
+        setIsLoading(false);
+        toast.success(`Successfully imported "${result.metadata.title}" from MusicXML.`);
+        setProgressReport(null);
+        onImportComplete?.(result);
+      } else {
+        setIsLoading(false);
+        setProgressReport(null);
+        toast.error('Failed to parse MusicXML file');
+      }
     }
   }
 

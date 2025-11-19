@@ -1,5 +1,4 @@
 import { useEditor } from "@/contexts/editor-context";
-import { addDynamicToNote } from "@/lib/parsers/text-to-json";
 import { useScoreLayout } from "@/hooks/useScoreLayout";
 import { Button } from "@repo/ui/components/button";
 import { Printer } from "lucide-react";
@@ -49,11 +48,12 @@ export default function EngravingToolbar({ onPrint }: EngravingToolbarProps) {
     };
   }
 
+  
   const handleDynamicClick = (dynamic: string) => {
     if (!state?.selection || !state.solfaText) return;
 
     const timeSignature = state?.preferences?.timeSignature ?? { numerator: 4, denominator: 4 };
-    const newSolfaText = addDynamicToNote(state.solfaText, state.selection, dynamic, timeSignature);
+    const newSolfaText = 'p'
     setSolfaText(newSolfaText);
   };
 

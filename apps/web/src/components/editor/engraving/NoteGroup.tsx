@@ -14,7 +14,6 @@ interface NoteGroupProps {
 export const NoteGroup: React.FC<NoteGroupProps> = ({ measure, systemIndex, measureIndex, partIndex }) => {
   const { state, setSelection } = useEditor();
   const selection = state?.selection;
-
   // Spacing constants (SVG units)
   const DYNAMIC_ABOVE_OFFSET = 12; // distance dynamic sits above note head baseline
   const LYRIC_BASE_OFFSET = 20; // base distance lyrics sit below note
@@ -81,7 +80,7 @@ export const NoteGroup: React.FC<NoteGroupProps> = ({ measure, systemIndex, meas
                     const totalWidth = (totalDynamics - 1) * dynamicSpacing;
                     const startX = noteHeadX - totalWidth / 2;
                     const dynamicX = startX + dynamicIndex * dynamicSpacing;
-                    
+
                     return (
                       <text
                         key={dynamicIndex}
@@ -96,7 +95,7 @@ export const NoteGroup: React.FC<NoteGroupProps> = ({ measure, systemIndex, meas
                   })}
                 </g>
               )}
-              
+
               {/* Note */}
               <text x={event.x} y={event.y} className={`notes ${isSelected ? 'selected' : ''}`}>
                 {event.graceNotes && (
@@ -159,16 +158,16 @@ export const NoteGroup: React.FC<NoteGroupProps> = ({ measure, systemIndex, meas
           if (index > 0 && measure.events[index - 1]?.type === 'note') {
             const prevNote = measure.events[index - 1];
             const noteName = prevNote.noteName as string;
-            
+
             // Detect octave markings using proper octave characters
             const hasOctaveMarking = /[₂ₗ'"″²]$/.test(noteName);
-            
+
             let noteWidth;
             if (hasOctaveMarking && noteName.length === 3) noteWidth = 14; // Base double char width + 5px for octave
             else if (hasOctaveMarking && noteName.length == 2) noteWidth = 12; // Base single char width + 5px for octave
             else if (prevNote.noteChange) noteWidth = (noteName.length + prevNote.noteChange.length) + 18; // Extra space for note change brackets
             else noteWidth = (noteName.length * 8) + 2; // 8px per character + 2px buffer
-            
+
             const minSpacing = 6; // Minimum gap between note and delimiter
             const offset = noteWidth + minSpacing;
             x = prevNote.x + offset;

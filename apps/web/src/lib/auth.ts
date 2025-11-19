@@ -45,7 +45,7 @@ export async function getAuthTokens(): Promise<{
 
     return { accessToken, refreshToken };
   } catch (error) {
-    console.error('Error getting auth tokens:', error);
+    console.error('[Auth] Error getting auth tokens:', error);
     return { accessToken: null, refreshToken: null };
   }
 }

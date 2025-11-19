@@ -9,15 +9,15 @@ export class ProjectsService {
   async create(userId: string, createProjectDto: CreateProjectDto) {
     // Validate required fields
     if (!userId) throw new BadRequestException('userId is required');
-
+    const { initialNotationContent, ...projectData } = createProjectDto;
 
     return await this.prisma.$transaction(async (tx) => {
       const project = await tx.project.create({
-        data: { ...createProjectDto, userId },
+        data: { ...projectData, userId },
       });
 
       const initialVersion = await tx.projectVersion.create({
-        data: { projectId: project.id, notationContent: '', versionType: 'initial', isCurrent: true },
+        data: { projectId: project.id, notationContent: initialNotationContent || '', versionType: 'initial', isCurrent: true },
       });
 
       return { ...project, currentVersion: initialVersion };

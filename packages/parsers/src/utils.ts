@@ -1,5 +1,5 @@
 import { KeySignature, TimeSignature } from "./interfaces.js";
-import { DirectionType, MeasureAttributes, TempoInfo, TextArray, XMLNote, XMLNotePitch, XMLNoteType } from "./types.js";
+import { MeasureAttributes, TempoInfo, TextArray, XMLNote, XMLNoteLyric, XMLNotePitch } from "./types.js";
 
 interface ProcessedEvent {
   symbol: string;
@@ -32,7 +32,8 @@ export const partMap: { [key: string]: { long: string; short: string } } = {
   Vln2: { long: "Violin 2", short: "Vln II." },
   Vla: { long: "Viola", short: "Vla." },
   Vc: { long: "Cello", short: "Vc." },
-  Cb: { long: "Bass", short: "Cb." },
+  Cb: { long: "Contrabass", short: "Cb." },
+  Db: { long: "Doublebass", short: "Db." },
   Fl: { long: "Flute", short: "Fl." },
   Ob: { long: "Oboe", short: "Ob." },
   Cl: { long: "Clarinet", short: "Cl." },
@@ -126,7 +127,7 @@ export function parseXMLMeasureAttributes(raw: unknown): MeasureAttributes {
   return { key, time, division }
 }
 
-export function updateAtrributeSnapshot(
+export function updateAttributeSnapshot(
   snapshot: { initialKey?: KeySignature, initialTime?: TimeSignature, currentKey?: KeySignature, currentTime?: TimeSignature, currentDivision?: number },
   attrs: MeasureAttributes,
   seenFirstAttributes: { value: boolean }
@@ -149,37 +150,26 @@ export function updateAtrributeSnapshot(
   }
 }
 
-export function extractXMLTempoInfo(directionData: DirectionType[] | undefined) {
-  if (!directionData) return {}
-  // Normalize to array
-  const directions = toArray(directionData);
-  const tempoInfo: TempoInfo = {}
-
-  for (const dir of directions) {
-    const directionTypes = dir['direction-type'];
-
-    if (directionTypes['words'] && typeof directionTypes['words'] === 'string') {
-      tempoInfo.text += directionTypes['words']
-    }
-    if (directionTypes['metronome']) {
-      const m = directionTypes['metronome'];
-      tempoInfo.beatUnit = m['beat-unit'];
-      tempoInfo.beatUnitDot = m['beat-unit-dot'] === '' ? true : false;
-      tempoInfo.perMinute = Number(m['per-minute'])
-    }
-  }
-
-  return tempoInfo
-}
-
-export function toArray<T>(item: T | T[] | undefined): T[] {
-  if (!item) return []
-  return Array.isArray(item) ? item : [item]
-}
-
 export function hasChanged<T extends object, K extends keyof T>(a: T | undefined, b: T | undefined, keys: K[]): boolean {
   if (!a || !b) return !!a !== !!b;
   return keys.some(key => a[key] !== b[key]);
+}
+
+export function detectClosedScore(partName: string) {
+  const validVocalParts = ['Soprano', 'Alto', 'Tenor', 'Baritone', 'Bass', 'S', 'A', 'T', 'B'];
+
+  const singlePattern = /^(Soprano|Alto|Tenor|Baritone|Bass|S|A|T|B)(\s+[IVX\d]+)?$/i;
+  if (singlePattern.test(partName.trim())) {
+    return partName
+  }
+
+  const parts = partName.split(/[,\s]+/).filter(p => p.trim().length > 0);
+  const allValid = parts.every(part => {
+    const partName = part.replace(/\s*[IVX\d]+$/i, '').trim();
+    return validVocalParts.some(valid => valid.toLowerCase() === partName.toLowerCase());
+  })
+  if (!allValid) return null;
+  return parts
 }
 
 export function parseXMLNotes(
@@ -203,16 +193,61 @@ export function parseXMLNotes(
   let currentBeat = 1
 
   // --- PASS 1: Convert event to symbols and store beat info ---
-  for (const note of notes) {
+  const beatScale = currentTime.denominator === 8 ? 2 : 1;
+
+  let n = 0;
+  while (n < notes.length) {
+    const note = notes[n] as XMLNote;
+    const nextNote = n < notes.length - 1 ? notes[n + 1] : null;
+
     let symbol = '';
-    const beatValue = note?.duration ? note.duration / division : 0;
+    const beatValue = (note?.duration ? note.duration / division : 0) * beatScale;
 
     if (note?.rest !== undefined) {
-      symbol = getRestNotation(note.type, currentTime) || '';
+      symbol = getRestNotation(note, currentTime) || '';
     } else if (note?.pitch) {
       symbol = getXMLSolfaNote(note.pitch, currentKey, keyMap, part);
-      if (note.lyric && typeof note.lyric.text === 'string') {
-        symbol += `(${note.lyric.text})`;
+      if (nextNote?.pitch && nextNote.chord !== undefined) {
+        const chordNote = getXMLSolfaNote(nextNote.pitch, currentKey, keyMap, part)
+        let lyricText = '';
+        if (note.lyric) {
+          if (Array.isArray(note.lyric)) {
+            note.lyric.forEach((line, idx) => {
+              const isLast = idx === (note.lyric as XMLNoteLyric[]).length - 1;
+              if (isLast) lyricText += line.text;
+              else lyricText += `${line.text} +`;
+            })
+          } else {
+            lyricText = note.lyric.text;
+          }
+          lyricText = `(${lyricText})`;
+        }
+        symbol = `${chordNote}${lyricText}{${symbol}}`;
+        n++; // Skip the chord note
+      } else {
+        if (note.lyric) {
+          if (Array.isArray(note.lyric)) {
+            let lyricText = '';
+            note.lyric.forEach((line, idx) => {
+              const isLast = idx === (note.lyric as XMLNoteLyric[]).length - 1;
+              if (isLast) lyricText += line.text;
+              else lyricText += `${line.text} +`;
+            })
+            symbol += `(${lyricText})`;
+          } else {
+            symbol += `(${note.lyric.text})`;
+          }
+        }
+      }
+
+      if (note.dynamic) {
+        symbol = `[${note.dynamic}]${symbol}`;
+      }
+      if (note.directionText) {
+        symbol = `"${note.directionText}"${symbol}`;
+      }
+      if (note.tempo && barNumber > 0) {
+        symbol = `{${formatTempoInfo(note.tempo)}}${symbol}`;
       }
     }
 
@@ -223,7 +258,9 @@ export function parseXMLNotes(
       originalEvent: note
     });
     currentBeat += beatValue;
+    n++;
   }
+
 
   // --- PASS 2: Build final string with contextual separators ---
   let finalString = '';
@@ -278,12 +315,12 @@ export function parseXMLNotes(
         }
 
         const prevIsTuplet = !!previousEvent?.originalEvent["time-modification"];
-        if (!prevIsTuplet){
+        if (!prevIsTuplet) {
           const prevStartedOnBeat = Number.isInteger(prevEventStartBeat);
           if (prevStartedOnBeat) {
             const lastIntegerBeat = Math.floor(prevEventStartBeat);
             const lastEighthBoundary = Math.floor(prevEventEndBeat * 2) / 2;
-  
+
             if (lastEighthBoundary > lastIntegerBeat && lastEighthBoundary < prevEventEndBeat) {
               separator += " . -";
             }
@@ -296,7 +333,7 @@ export function parseXMLNotes(
       const prevIsTuplet = !!previousEvent?.originalEvent["time-modification"];
 
       if (isTuplet && prevIsTuplet) {
-        if (previousEvent.originalEvent.type=== 'eighth'){
+        if (previousEvent.originalEvent.type === 'eighth') {
           separator += "."
         } else {
           separator += ":"
@@ -305,7 +342,10 @@ export function parseXMLNotes(
         const isNotStartBeat = !Number.isInteger(currentEventStartBeat)
         if (isNotStartBeat && previousEvent?.originalEvent.pitch) {
           if (currentEventStartBeat % 0.5 === 0) {
-            separator += " .";
+            // If there is an extension and it gives a dot (an eighth rest), we don't need the separator
+            if (symbolToPrint !== '.') {
+              separator += " .";
+            }
           } else if (currentEventStartBeat % 0.25 === 0) {
             separator += " ,";
           } else if (currentEventStartBeat % 0.125 === 0) {
@@ -360,16 +400,8 @@ export function parseXMLNotes(
   if (processedEvents.length > 0) {
     const lastEvent = processedEvents[processedEvents.length - 1];
 
-    let isTieEnd = false;
-    if (processedEvents.length > 1) {
-      const secondLastEvent = processedEvents[processedEvents.length - 2];
-      if (currentMeasureTieState && isTiedNote(secondLastEvent?.originalEvent)) {
-        isTieEnd = true;
-      }
-    }
-
     const lastIsTuplet = !!lastEvent?.originalEvent["time-modification"];
-    if (lastEvent?.originalEvent.pitch && !isTieEnd && !lastIsTuplet) {
+    if (lastEvent?.originalEvent.pitch && !lastIsTuplet) {
       const lastEventEndBeat = (lastEvent?.durationInBeats || 0) + (lastEvent?.beatStartsOn || 0);
 
       const firstBeatToCheck = Math.floor((lastEvent?.beatStartsOn || 0) + 1)
@@ -387,7 +419,7 @@ export function parseXMLNotes(
       if (lastNoteStartedOnBeat) {
         const lastIntegerBeat = Math.floor(lastEventStartBeat);
         const lastEighthBoundary = Math.floor(lastEventEndBeat * 2) / 2;
-  
+
         if (lastEighthBoundary > lastIntegerBeat && lastEighthBoundary < lastEventEndBeat) {
           finalString += " . -";
         }
@@ -414,23 +446,36 @@ function pitchToNoteName(pitch: XMLNotePitch): string {
   return noteName;
 }
 
-function getRestNotation(type: XMLNoteType, time: TimeSignature) {
+function getRestNotation(note: XMLNote, time: TimeSignature) {
+  const { type, dot } = note;
+  const isDotted = dot !== undefined;
+
+  const table4 = {
+    whole: 'x : x / x : x',
+    half: 'x:x',
+    quarter: 'x',
+    eighth: '.',
+    '16th': ','
+  } as Record<string, string>;
+
+  const table8 = {
+    whole: 'x : x : x / x : x : x / x : x : x / x : x : x',
+    half: isDotted ? 'x : x : x : x : x : x' : 'x : x : x : x',
+    quarter: isDotted ? 'x : x : x' : 'x : x',
+    eighth: 'x',
+    '16th': '.',
+    '32nd': ','
+  } as Record<string, string>;
+
   if (time.denominator === 4) {
-    switch (type) {
-      case 'whole':
-        return 'x : x / x : x';
-      case 'half':
-        return 'x:x'
-      case 'quarter':
-        return 'x';
-      case 'eighth':
-        return '.';
-      case '16th':
-        return ','
-      default:
-        return '';
-    }
+    return table4[type] ?? '';
   }
+
+  if (time.denominator === 8) {
+    return table8[type] ?? '';
+  }
+
+  return '';
 }
 
 function getKeyMap(currentKey: KeySignature): Record<string, string> {
@@ -568,27 +613,52 @@ export const getTextArray = (data: TextArray | undefined): string[] => {
     .filter((text): text is string => !!text); // Filter out any undefined/null
 };
 
+function formatTempoInfo(tempo: TempoInfo): string {
+  let tempoString = 'T'
+  const unitMap: Record<string, number> = {
+    'half': 2,
+    'quarter': 4,
+    'eighth': 8,
+    '16th': 16
+  };
+
+  const tempoType = unitMap[tempo.beatUnit!]
+  tempoString += tempoType + (tempo.beatUnitDot ? '.' : '') + '=' + tempo.perMinute;
+
+  return tempoString;
+}
+
 export function simplifyNode(node: any): any {
-  if (Array.isArray(node)){
+  if (Array.isArray(node)) {
     const simplified: any = {}
     let hasText = false
     let textValue = null
 
-    for (const item of node){
-      if (item.hasOwnProperty('#text')){
+    for (const item of node) {
+      if (item.hasOwnProperty('#text')) {
         hasText = true
         textValue = item['#text']
         continue;
       }
 
       const keys = Object.keys(item)
-      if (keys.length > 0){
+      if (keys.length > 0) {
         const key = keys[0]
-        simplified[key!] = simplifyNode(item[key!])
+        const value = simplifyNode(item[key!])
+
+        if (simplified.hasOwnProperty(key)) {
+          if (Array.isArray(simplified[key!])) {
+            simplified[key!].push(value)
+          } else {
+            simplified[key!] = [simplified[key!], value]
+          }
+        } else {
+          simplified[key!] = value
+        }
       }
     }
 
-    if (hasText && Object.keys(simplified).length === 0){
+    if (hasText && Object.keys(simplified).length === 0) {
       return textValue
     }
 
